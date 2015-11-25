@@ -1,12 +1,15 @@
 {
-  "name": "tests",
+  "name": "unicity_gauntlet",
   "version": "1.0.0",
-  "description": "",
-  "main": "test_runner.js",
+  "description": "Run tests, compare output",
+  "main": "gauntlet",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "bin":{
+    "gauntlet": "gauntlet"
+  },
+  "author": "powerc9000",
   "license": "ISC",
   "dependencies": {
     "colors": "^1.1.2",
