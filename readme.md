@@ -5,13 +5,13 @@ The gauntlet needs all parameters before it can be run
 
   parameters
 
-    \-p port
+    -p port
 
-    \-h host name
+    -h host name
 
-    \-f test file path
+    -f test file path
 
-    \-d test files directory path
+    -d test files directory path
 
 Optional arguments --verbose. Prints out the headers and output from the server for each test.
 
