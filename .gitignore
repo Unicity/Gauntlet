@@ -1,0 +1,4 @@
+.nyc_output
+.failed.txt
+.DS_Store
+node_modules

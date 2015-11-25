@@ -1,0 +1,97 @@
+#!/usr/bin/env node
+
+"use strict";
+
+var test_runner = require("./test_runner");
+var host;
+var port;
+var verbose = false;
+var testFile;
+var testFolder;
+var basePath = "";
+var commandLineTests = [];
+var flags = ["-p", "-h", "-d", "-f", "-a"];
+var args = process.argv.slice(2);
+
+
+
+for (let i = 0; i < args.length; i++){
+  let arg = args[i];
+  let flag = getFlag(args, i, flags);
+
+  if(flag){
+    i += flag.increment;
+    switch(flag.flag){
+      case "-p":{
+        port = flag.value;
+      }break;
+      case "-h":{
+        host = flag.value;
+      }break;
+      case "-d": {
+        testFolder = flag.value;
+      }break;
+      case "-f": {
+        testFile = flag.value;
+      }break;
+      case "-a": {
+        basePath = flag.value;
+      }break;
+    }
+  }
+  else if(arg.indexOf("--verborse") > -1 || arg.indexOf("-v") > -1){
+    verbose = true;
+  }
+  else{
+    if(arg.trim()){
+      let testArgs = arg.split(".");
+      if(testArgs.length){
+
+        commandLineTests.push({test:encodeURIComponent(testArgs[0]), subTest: testArgs[1]});
+      }
+    }
+  }
+}
+
+if(!host || !port || !testFile || !testFolder){
+  console.log("The gauntlet needs all parameters before it can be run");
+  console.log("Usage: ");
+  console.log("gauntlet <parameters> [tests]");
+  console.log("    parameters");
+  console.log("    -p port");
+  console.log("    -h host name");
+  console.log("    -f test file path");
+  console.log("    -d test files directory path");
+  console.log("    -b the base path for the test endpoints (not required)");
+  return;
+}
+
+
+test_runner.main(host, port, testFile, testFolder, basePath, commandLineTests, verbose);
+
+function getFlag(args, index, flags){
+  var result = {increment: 0};
+  var found;
+  flags.forEach(function(f){
+    if(args[index].indexOf(f) > -1){
+      found = true;
+      let attached = args[index].split(f);
+
+      result.flag = f;
+
+      if(attached[1]){
+        result.value = attached[1];
+      }
+      else{
+        result.value = args[index+1];
+        result.increment = 1;
+      }
+    }
+  })
+  if(found){
+    return result;
+  }
+  else{
+    return null;
+  }
+}
