@@ -7,16 +7,37 @@ var q = require("q");
 var colors = require("colors/safe");
 var path = require("path");
 var xmlChildPath = __dirname+"/xmlChild";
+var knox = require("knox");
 var childProcess = require("child_process")
 
-function main(host, port, testFile, testFolder, basePath, commandLineTests, verbose, diffUrl, shortenerAPIKey){
-  //Get the testfile
+function main(options){
+
+  var host             = options.host; 
+  var port             = options.port; 
+  var verbose          = options.verbose;
+  var diffUrl          = options.diffUrl; 
+  var testFile         = options.testFile;
+  var basePath         = options.basePath;
+  var testFolder       = options.testFolder; 
+  var shortenerAPIKey  = options.shortenerAPIKey;
+  var commandLineTests = options.commandLineTests;
 
   var testFile = JSON.parse(fs.readFileSync(testFile).toString());
 
+  var testPromises = [];
+
   var tests = Object.keys(testFile);
 
-  var testPromises = [];
+  var client;
+
+  if(options.AWSSecret){
+    console.log(options.AWSSecret, options.AWSBucket, options.AWSKey)
+    client = knox.createClient({
+      key: options.AWSKey,
+      secret: options.AWSSecret,
+      bucket: options.AWSBucket
+    })
+  }
 
 function wait(func){
     var args = [].splice.call(arguments,1);
@@ -127,6 +148,7 @@ function wait(func){
         
 
         comparePromise = q.defer();
+
         if(res.headers["content-type"].indexOf("application/json") > -1){
 
           try{
@@ -139,7 +161,6 @@ function wait(func){
 
           try{
             actualOutput = JSON.parse(response);
-            //console.log(JSON.stringify(actualOutput, null, 2))
           }
           catch(e){
             failTest(test, promise, "Couldn't parse output from server");
@@ -153,7 +174,7 @@ function wait(func){
           else{
             test.passed = false;
             test.reason = "Outputs do not match";
-            getDifferencesUrl(expectedOutput, actualOutput, diffUrl, shortenerAPIKey).then(function(url){
+            getDifferencesUrl(expectedOutput, actualOutput, diffUrl, shortenerAPIKey, client).then(function(url){
               test.reason += " "+url;
               comparePromise.resolve();
             });
@@ -177,14 +198,11 @@ function wait(func){
                 test.reason = errors[0];
                 
               }
-            //console.log(errors);
             comparePromise.resolve();
             child.kill();
           })
          
         }
-        //console.log(JSON.stringify(JSON.parse(body), null, 2));
-        //console.log(body);
         comparePromise.promise.then(function(){
            
           if(test.passed){
@@ -193,10 +211,6 @@ function wait(func){
           else{
               
             promise.reject(test);
-            // if(test.name.indexOf("CreateEnrollment") > -1){
-            //   //console.log(test);
-            // console.log(promise);
-            // }
           }
         }, function(){
           console.log("erroor");
@@ -207,12 +221,7 @@ function wait(func){
       });
     });
   });
-  // setInterval(function(){
-  //   testPromises.forEach(function(p){
-  //     var promise = p.inspect();
-  //     console.log(promise.state);
-  //   })
-  // }, 1000)
+
   q.allSettled(testPromises).then(function(tests){
     var passed = 0;
     var total = 0;
@@ -263,27 +272,74 @@ function failTest(test, promise, reason){
   promise.reject(test);
 }  
 
-function getDifferencesUrl(actual, expected, diffUrl, shortenerAPIKey){
+function getDifferencesUrl(actual, expected, diffUrl, shortenerAPIKey, client){
   var promise = q.defer();
   if(!diffUrl || !shortenerAPIKey){
     promise.resolve("");
   }
   else{
-    var left = encodeURI(JSON.stringify(actual));
-    var right = encodeURI(JSON.stringify(expected));
-    var url = diffUrl + "?left="+left+"&right="+right;
-    request.post({
-      url: "https://www.googleapis.com/urlshortener/v1/url?key="+shortenerAPIKey,
-      headers: {
-              "content-type": "application/json",
-          },
-      body: JSON.stringify({
-        "longUrl": url
-      })
-    }, function(err, res, body){
-      promise.resolve(JSON.parse(body).id);
-    })
+    if(client){
+      var left;
+      var right;
+      return sendToS3(actual, client).then(function(url){
+        left = encodeURI(url);
+        return sendToS3(expected, client);
+      }).then(function(url){
+        right = encodeURI(url);
+        var finalUrl = diffUrl + "?left="+left+"&right="+right;
+        return shortenUrl(finalUrl, shortenerAPIKey);
+      });
+
+     
+    }
+    else{
+      var left = encodeURI(JSON.stringify(actual));
+      var right = encodeURI(JSON.stringify(expected));
+      var url = diffUrl + "?left="+left+"&right="+right;
+      return shortenUrl(url, shortenerAPIKey);
+    }
+    
   }
+  return promise.promise;
+}
+
+function sendToS3(obj, client){
+  var name = Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 7);
+  var string = JSON.stringify(obj);
+  var promise = q.defer();
+  name = name + ".json";
+  var req = client.put(name, {
+      'Content-Length': Buffer.byteLength(string)
+    , 'Content-Type': 'application/json'
+  });
+  req.on('response', function(res){
+    if (200 == res.statusCode) {
+      console.log('saved to %s', req.url);
+      promise.resolve(req.url);
+    }
+    else{
+      promise.resolve("");
+    }
+  });
+  req.end(string);
+
+  return promise.promise;
+}
+
+
+function shortenUrl(url, shortenerAPIKey){
+  var promise = q.defer();
+  request.post({
+    url: "https://www.googleapis.com/urlshortener/v1/url?key="+shortenerAPIKey,
+    headers: {
+            "content-type": "application/json",
+        },
+    body: JSON.stringify({
+      "longUrl": url
+    })
+  }, function(err, res, body){
+    promise.resolve(JSON.parse(body).id);
+  });
   return promise.promise;
 }
 

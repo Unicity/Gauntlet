@@ -12,10 +12,12 @@ var basePath = "";
 var commandLineTests = [];
 var diffUrl;
 var shortenerAPIKey;
-var flags = ["-p", "-h", "-d", "-f", "-a", "-u", "-k"];
+var flags = ["-p", "-h", "-d", "-f", "-a", "-u", "-g", "--aws-key", "--aws-secret", "--aws-bucket"];
 var args = process.argv.slice(2);
 
-
+var options = {
+ 
+};
 
 for (let i = 0; i < args.length; i++){
   let arg = args[i];
@@ -25,25 +27,34 @@ for (let i = 0; i < args.length; i++){
     i += flag.increment;
     switch(flag.flag){
       case "-p":{
-        port = flag.value;
+        options.port = flag.value
       }break;
       case "-h":{
-        host = flag.value;
+        options.host = flag.value;
       }break;
       case "-d": {
-        testFolder = flag.value;
+        options.testFolder = flag.value;
       }break;
       case "-f": {
-        testFile = flag.value;
+        options.testFile = flag.value;
       }break;
       case "-a": {
-        basePath = flag.value;
+        options.basePath = flag.value;
       }break;
       case "-u": {
-        diffUrl = flag.value
+        options.diffUrl = flag.value
       }break;
-      case "-k": {
-        shortenerAPIKey = flag.value;
+      case "-g": {
+        options.shortenerAPIKey = flag.value;
+      }break;
+      case "--aws-key": {
+        options.AWSKey = flag.value;
+      }break;
+      case "--aws-secret": {
+        options.AWSSecret = flag.value;
+      }break;
+      case "--aws-bucket": {
+        options.AWSBucket = flag.value;
       }break;
 
     }
@@ -62,7 +73,7 @@ for (let i = 0; i < args.length; i++){
   }
 }
 
-if(!host || !port || !testFile || !testFolder){
+if(!options.host || !options.port || !options.testFile || !options.testFolder){
   console.log("The gauntlet needs all parameters before it can be run");
   console.log("Usage: ");
   console.log("gauntlet <parameters> [tests]");
@@ -72,13 +83,16 @@ if(!host || !port || !testFile || !testFolder){
   console.log("    -f test file path");
   console.log("    -d test files directory path");
   console.log("    -a the base path for the test endpoints (not required)");
-  console.log("    -k Google API key (for url shortening. Not required)");
+  console.log("    -g Google API key (for url shortening. Not required)");
   console.log("    -u JSON diff url (not required)");
+  console.log("    --aws-secrect AWS secret (not requires)");
+  console.log("    --aws-key AWS Key (not required)");
+  console.log("    --aws-bucket AWS Bucket (not required)");
   return;
 }
 
-
-test_runner.main(host, port, testFile, testFolder, basePath, commandLineTests, verbose, diffUrl, shortenerAPIKey);
+options.commandLineTests = commandLineTests;
+test_runner.main(options);
 
 function getFlag(args, index, flags){
   var result = {increment: 0};
