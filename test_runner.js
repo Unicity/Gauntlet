@@ -9,7 +9,7 @@ var path = require("path");
 var xmlChildPath = __dirname+"/xmlChild";
 var childProcess = require("child_process")
 
-function main(host, port, testFile, testFolder, basePath, commandLineTests, verbose){
+function main(host, port, testFile, testFolder, basePath, commandLineTests, verbose, diffUrl, shortenerAPIKey){
   //Get the testfile
 
   var testFile = JSON.parse(fs.readFileSync(testFile).toString());
@@ -148,13 +148,18 @@ function wait(func){
 
           if(deepCompare(expectedOutput, actualOutput)){
             test.passed = true;
+            comparePromise.resolve();
           }
           else{
             test.passed = false;
             test.reason = "Outputs do not match";
+            getDifferencesUrl(expectedOutput, actualOutput, diffUrl, shortenerAPIKey).then(function(url){
+              test.reason += " "+url;
+              comparePromise.resolve();
+            });
           }
 
-          comparePromise.resolve();
+          
         }
         else if(res.headers["content-type"].indexOf("text/xml") > -1){
           //For some reason xml parsing is messing stuff up going to run it in a child process
@@ -258,6 +263,30 @@ function failTest(test, promise, reason){
   promise.reject(test);
 }  
 
+function getDifferencesUrl(actual, expected, diffUrl, shortenerAPIKey){
+  var promise = q.defer();
+  if(!diffUrl || !shortenerAPIKey){
+    promise.resolve("");
+  }
+  else{
+    var left = encodeURI(JSON.stringify(actual));
+    var right = encodeURI(JSON.stringify(expected));
+    var url = diffUrl + "?left="+left+"&right="+right;
+    request.post({
+      url: "https://www.googleapis.com/urlshortener/v1/url?key="+shortenerAPIKey,
+      headers: {
+              "content-type": "application/json",
+          },
+      body: JSON.stringify({
+        "longUrl": url
+      })
+    }, function(err, res, body){
+      promise.resolve(JSON.parse(body).id);
+    })
+  }
+  return promise.promise;
+}
+
 exports.main = main;
 
 //A more compact deep compare using underscore. also from stack overflow. http://stackoverflow.com/a/13142970/825240
@@ -266,10 +295,12 @@ exports.main = main;
 function deepCompare(ar1, ar2) {
     var still_matches, _fail,
       _this = this;
+      var length1 = Object.keys(ar1).length;
+      var length2 = Object.keys(ar2).length;
     if (!((_.isArray(ar1) && _.isArray(ar2)) || (_.isObject(ar1) && _.isObject(ar2)))) {
       return false;
     }
-    if (ar1.length !== ar2.length) {
+    if (length1 !== length2) {
       return false;
     }
     still_matches = true;

@@ -10,7 +10,9 @@ var testFile;
 var testFolder;
 var basePath = "";
 var commandLineTests = [];
-var flags = ["-p", "-h", "-d", "-f", "-a"];
+var diffUrl;
+var shortenerAPIKey;
+var flags = ["-p", "-h", "-d", "-f", "-a", "-u", "-k"];
 var args = process.argv.slice(2);
 
 
@@ -37,6 +39,13 @@ for (let i = 0; i < args.length; i++){
       case "-a": {
         basePath = flag.value;
       }break;
+      case "-u": {
+        diffUrl = flag.value
+      }break;
+      case "-k": {
+        shortenerAPIKey = flag.value;
+      }break;
+
     }
   }
   else if(arg.indexOf("--verborse") > -1 || arg.indexOf("-v") > -1){
@@ -62,12 +71,14 @@ if(!host || !port || !testFile || !testFolder){
   console.log("    -h host name");
   console.log("    -f test file path");
   console.log("    -d test files directory path");
-  console.log("    -b the base path for the test endpoints (not required)");
+  console.log("    -a the base path for the test endpoints (not required)");
+  console.log("    -k Google API key (for url shortening. Not required)");
+  console.log("    -u JSON diff url (not required)");
   return;
 }
 
 
-test_runner.main(host, port, testFile, testFolder, basePath, commandLineTests, verbose);
+test_runner.main(host, port, testFile, testFolder, basePath, commandLineTests, verbose, diffUrl, shortenerAPIKey);
 
 function getFlag(args, index, flags){
   var result = {increment: 0};
