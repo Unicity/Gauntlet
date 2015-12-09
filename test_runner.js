@@ -31,7 +31,6 @@ function main(options){
   var client;
 
   if(options.AWSSecret){
-    console.log(options.AWSSecret, options.AWSBucket, options.AWSKey)
     client = knox.createClient({
       key: options.AWSKey,
       secret: options.AWSSecret,
@@ -314,7 +313,6 @@ function sendToS3(obj, client){
   });
   req.on('response', function(res){
     if (200 == res.statusCode) {
-      console.log('saved to %s', req.url);
       promise.resolve(req.url);
     }
     else{
