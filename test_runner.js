@@ -343,30 +343,46 @@ function shortenUrl(url, shortenerAPIKey){
 
 exports.main = main;
 
-//A more compact deep compare using underscore. also from stack overflow. http://stackoverflow.com/a/13142970/825240
-//I could write a deep compare easily, I just don't want to. I'm not even sure why. I've done it like a least twice 
-//in the JSONSchema.
 function deepCompare(ar1, ar2) {
-    var still_matches, _fail,
-      _this = this;
-      var length1 = Object.keys(ar1).length;
-      var length2 = Object.keys(ar2).length;
-    if (!((_.isArray(ar1) && _.isArray(ar2)) || (_.isObject(ar1) && _.isObject(ar2)))) {
-      return false;
+    var matches = true;
+    var type1 = typeof ar1;
+    var type2 = typeof ar2;
+
+    if(ar1 === null || ar2 === null){
+      matches = ar1 === ar2;
+      return matches;
     }
-    if (length1 !== length2) {
-      return false;
+
+
+    if(type1 !== type2){
+      matches = false;
     }
-    still_matches = true;
-    _fail = function() {
-      still_matches = false;
-    };
-    _.each(ar1, function(prop1, n) {
-      var prop2;
-      prop2 = ar2[n];
-      if (prop1 !== prop2 && !deepCompare(prop1, prop2)) {
-        _fail();
+    else{
+      switch(typeof ar1){
+        case "object":{
+          var keys1 = Object.keys(ar1);
+          var keys2 = Object.keys(ar1);
+         
+          if(keys1.length !== keys2.length){
+            matches = false;  
+          }
+          keys1.every(function(key1, n){
+            if(key1 !== keys2[n]){
+              matches = false; 
+              return matches;
+            }
+            else{
+              matches = deepCompare(ar1[key1], ar2[key1]);
+              return matches;
+            }
+          });
+        }break;
+        case "string":
+        case "boolean":
+        case "number":{
+          matches = ar1 === ar2;
+        }break;
       }
-    });
-    return still_matches;
+    }
+    return matches;
   }
