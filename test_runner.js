@@ -8,7 +8,8 @@ var colors = require("colors/safe");
 var path = require("path");
 var xmlChildPath = __dirname+"/xmlChild";
 var knox = require("knox");
-var childProcess = require("child_process")
+var childProcess = require("child_process");
+var xmlParser = require("./xmlparser.js");
 
 function main(options){
 
@@ -42,7 +43,7 @@ function wait(func){
     var args = [].splice.call(arguments,1);
     setTimeout(function(){
       func.apply(null, args)
-    },200)
+    },100)
   }
   tests.forEach(function(testKey){
     //If there is a test to run from command line only run that one
@@ -173,7 +174,7 @@ function wait(func){
           else{
             test.passed = false;
             test.reason = "Outputs do not match";
-            getDifferencesUrl(expectedOutput, actualOutput, diffUrl, shortenerAPIKey, client).then(function(url){
+            getDifferencesUrl(expectedOutput, actualOutput, "json", diffUrl, shortenerAPIKey, client).then(function(url){
               test.reason += " "+url;
               comparePromise.resolve();
             });
@@ -183,23 +184,50 @@ function wait(func){
         }
         else if(res.headers["content-type"].indexOf("text/xml") > -1){
           //For some reason xml parsing is messing stuff up going to run it in a child process
-          var child = childProcess.fork(xmlChildPath);
-          child.send({
-            xml: response,
-            schema: expectedOutput
-          })
-          child.on("message", function(errors){
-             if(!errors){
-              test.passed = true
-              }
-              else{
-                test.passed = false;
-                test.reason = errors[0];
-                
-              }
-            comparePromise.resolve();
-            child.kill();
-          })
+          var extension = test.outputs.split(".");
+          extension = extension[extension.length - 1];
+          if(extension === "xsd"){
+            var child = childProcess.fork(xmlChildPath);
+            child.send({
+              xml: response,
+              schema: expectedOutput
+            })
+            child.on("message", function(errors){
+               if(!errors){
+                test.passed = true
+                }
+                else{
+                  test.passed = false;
+                  test.reason = errors[0];
+                  
+                }
+              comparePromise.resolve();
+              child.kill();
+            })
+          }
+          else{
+            var actual = JSON.parse(xmlParser.parse(response));
+            var expected = JSON.parse(xmlParser.parse(expectedOutput));
+
+            response = response.replace(/>\s*/g, '>'); 
+            response = response.replace(/\s*</g, '<'); 
+            expectedOutput = expectedOutput.replace(/>\s*/g, '>'); 
+            expectedOutput = expectedOutput.replace(/\s*</g, '<'); 
+
+            if(response === expectedOutput){
+              test.passed = true;
+              comparePromise.resolve();
+            }
+            else{
+              test.passed = false;
+              expectedOutput = expectedOutput.replace(/>/g, '>\n'); 
+              response = response.replace(/>/g, '>\n'); 
+              getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url){
+                test.reason = "Outputs do not match " + url
+                comparePromise.resolve();
+              })
+            }
+          }
          
         }
         comparePromise.promise.then(function(){
@@ -271,7 +299,7 @@ function failTest(test, promise, reason){
   promise.reject(test);
 }  
 
-function getDifferencesUrl(actual, expected, diffUrl, shortenerAPIKey, client){
+function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, client){
   var promise = q.defer();
   if(!diffUrl || !shortenerAPIKey){
     promise.resolve("");
@@ -280,9 +308,9 @@ function getDifferencesUrl(actual, expected, diffUrl, shortenerAPIKey, client){
     if(client){
       var left;
       var right;
-      return sendToS3(actual, client).then(function(url){
+      return sendToS3(actual, "actual-", type,  client).then(function(url){
         left = encodeURI(url);
-        return sendToS3(expected, client);
+        return sendToS3(expected, "expected-", type,  client);
       }).then(function(url){
         right = encodeURI(url);
         var finalUrl = diffUrl + "?left="+left+"&right="+right;
@@ -302,16 +330,29 @@ function getDifferencesUrl(actual, expected, diffUrl, shortenerAPIKey, client){
   return promise.promise;
 }
 
-function sendToS3(obj, client){
-  var name = Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 7);
-  var string = JSON.stringify(obj);
+function sendToS3(obj, name, type, client){
+  name = name + Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 7);
+  var string = obj;
   var promise = q.defer();
-  name = name + ".json";
+  var contentType;
+  name = name + "."+type;
+
+  if(type === "json"){
+    contentType = "application/json"
+    string = JSON.stringify(obj);
+  }
+  else{
+    contentType = "text/plain"
+  }
   var req = client.put(name, {
       'Content-Length': Buffer.byteLength(string)
-    , 'Content-Type': 'application/json'
+    , 'Content-Type': contentType
+  });
+  req.on("err", function(err){
+    console.log(err);
   });
   req.on('response', function(res){
+
     if (200 == res.statusCode) {
       promise.resolve(req.url);
     }
