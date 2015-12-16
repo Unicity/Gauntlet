@@ -174,7 +174,7 @@ function wait(func){
           else{
             test.passed = false;
             test.reason = "Outputs do not match";
-            getDifferencesUrl(expectedOutput, actualOutput, "json", diffUrl, shortenerAPIKey, client).then(function(url){
+            getDifferencesUrl(actualOutput, expectedOutput, "json", diffUrl, shortenerAPIKey, client).then(function(url){
               test.reason += " "+url;
               comparePromise.resolve();
             });
