@@ -309,10 +309,10 @@ function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, cl
       var left;
       var right;
       return sendToS3(actual, "actual-", type,  client).then(function(url){
-        left = encodeURI(url);
+        right = encodeURI(url);
         return sendToS3(expected, "expected-", type,  client);
       }).then(function(url){
-        right = encodeURI(url);
+        left = encodeURI(url);
         var finalUrl = diffUrl + "?left="+left+"&right="+right;
         return shortenUrl(finalUrl, shortenerAPIKey);
       });
