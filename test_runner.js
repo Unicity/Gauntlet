@@ -382,6 +382,18 @@ function shortenUrl(url, shortenerAPIKey){
   return promise.promise;
 }
 
+function parseJSON(string){
+  var result;
+  try{
+    result = JSON.parse(string);
+  }
+  catch(e){
+    result = null;
+  }
+  return result;
+}
+
+
 exports.main = main;
 
 function deepCompare(ar1, ar2) {
