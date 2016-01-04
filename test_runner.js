@@ -89,17 +89,25 @@ function wait(func){
       if (typeof input === "object") {
         var fieldNames = Object.keys(input);
         var formData = {};
-        fieldNames.forEach(function(fieldName){
-          var field = input[fieldName];
-          formData[fieldName] = fs.readFileSync(path.join(testFolder,testKey,subTestKey,field)).toString();
-        });
-        requestOptions.formData = formData;
+        if(input["^file"]){
+          requestOptions.body = fs.readFileSync(path.join(testFolder, testKey, subTestKey, input["^file"]));
+        }
+        else{
+          fieldNames.forEach(function(fieldName){
+            var field = input[fieldName];
+            var filename;
+            //Ignore description field
+            if(fieldName === "^desc"){
+              return;
+            }
+            formData[fieldName] = fs.readFileSync(path.join(testFolder,testKey,subTestKey, field)).toString();
+          });
+          requestOptions.formData = formData;
+        }
       }
       else{
         requestOptions.body = fs.readFileSync(path.join(testFolder, testKey, subTestKey, input));
-        
       }
-
       //Kill the test if it takes too long
 
       test.timeout = setTimeout(function(){
@@ -150,19 +158,14 @@ function wait(func){
         comparePromise = q.defer();
 
         if(res.headers["content-type"].indexOf("application/json") > -1){
-
-          try{
-            expectedOutput = JSON.parse(expectedOutput);
-          }
-          catch(e){
+          expectedOutput = parseJSON(expectedOutput);
+          actualOutput = parseJSON(response);
+          
+          if(!expectedOutput){
             failTest(test, promise, "Couldn't parse expected output file as json");
             return;
           }
-
-          try{
-            actualOutput = JSON.parse(response);
-          }
-          catch(e){
+          if(!actualOutput){
             failTest(test, promise, "Couldn't parse output from server");
             return;
           }
