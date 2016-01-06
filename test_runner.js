@@ -62,8 +62,7 @@ function wait(func){
       }
     }
     var parentTest = testFile[testKey];
-    var subTestKeys = Object.keys(parentTest.inputs);
-    subTestKeys.forEach(function(subTestKey){
+    parentTest.tests.forEach(function(subTest){
 
       //If we are running a specific set of inputs only run those
       if (testSubset && testSubset !== subTestKey) {
@@ -72,9 +71,10 @@ function wait(func){
 
       var test = {
         endpoint: parentTest.endpoint,
-        inputs: parentTest.inputs[subTestKey],
-        outputs: parentTest.outputs[subTestKey],
-        subTest: subTestKey
+        inputs: subTest.files.inputs,
+        outputs: subTest.files.output,
+        name: subTest.name,
+        description: subTest.description
       }
       var promise = q.defer();
       testPromises.push(promise.promise);
@@ -89,24 +89,18 @@ function wait(func){
       if (typeof input === "object") {
         var fieldNames = Object.keys(input);
         var formData = {};
-        if(input["^file"]){
-          requestOptions.body = fs.readFileSync(path.join(testFolder, testKey, subTestKey, input["^file"]));
-        }
-        else{
-          fieldNames.forEach(function(fieldName){
-            var field = input[fieldName];
-            var filename;
-            //Ignore description field
-            if(fieldName === "^desc"){
-              return;
-            }
-            formData[fieldName] = fs.readFileSync(path.join(testFolder,testKey,subTestKey, field)).toString();
-          });
-          requestOptions.formData = formData;
-        }
+        fieldNames.forEach(function(fieldName){
+          var field = input[fieldName];
+          var filename;
+          //Ignore description field
+          formData[fieldName] = fs.readFileSync(path.join(testFolder,testKey,subTest.name, field)).toString();
+        });
+        requestOptions.formData = formData;
       }
       else{
-        requestOptions.body = fs.readFileSync(path.join(testFolder, testKey, subTestKey, input));
+        if(input){
+          requestOptions.body = fs.readFileSync(path.join(testFolder, testKey, subTest.name, input));
+        }
       }
       //Kill the test if it takes too long
 
@@ -147,7 +141,7 @@ function wait(func){
 
         //I hate exceptions
         try{
-            expectedOutput = fs.readFileSync(path.join(testFolder, testKey, subTestKey, test.outputs), "utf8").toString();
+            expectedOutput = fs.readFileSync(path.join(testFolder, testKey, test.name, test.outputs), "utf8").toString();
         }
         catch(e){
           failTest(test, promise, "No output file exists");
@@ -259,7 +253,7 @@ function wait(func){
       var Text = "Test: ";
       var testContent = test.reason ? test.reason : test.value;
       var endPoint = testContent.endpoint;
-      var subTest = testContent.subTest;
+      var subTest = testContent.name;
       var testPath = endPoint + "." + subTest;
       total++;
       if(verbose){
