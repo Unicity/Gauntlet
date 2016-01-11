@@ -1,0 +1,35 @@
+#!/usr/bin/env node
+
+
+var fs = require("fs");
+
+var fileName = process.argv[2];
+
+var fileContents = fs.readFileSync(fileName).toString();
+
+var fileContents = JSON.parse(fileContents);
+
+
+var result = {};
+var keys = Object.keys(fileContents);
+keys.forEach(function(key){
+  //Get the inputs
+  var inputs = Object.keys(fileContents[key].inputs);
+  result[key] = {};
+  result[key].name = fileContents[key].name;
+  result[key].endpoint = fileContents[key].endpoint;
+  result[key].tests = [];
+  inputs.forEach(function(input){
+    result[key].tests.push({
+      name: input,
+      files: {
+        inputs: fileContents[key].inputs[input],
+        output: fileContents[key].outputs[input]
+      }
+    })
+  })
+  result[key].gist = fileContents[key].gist;
+});
+
+fs.writeFileSync(fileName, JSON.stringify(result, null, 2));
+

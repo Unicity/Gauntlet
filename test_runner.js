@@ -112,9 +112,10 @@ function wait(func){
         }
       }, 30 * 1000);
       
+      test.start = Date.now() - 100;
       wait(request.post, requestOptions, function(err, res, body){
          
-        
+        test.end = Date.now();
         var comparePromise;
         var expectedOutput;
         var actualOutput;
@@ -270,6 +271,7 @@ function wait(func){
       else{
         Text += colors.red(testPath + " failed " + test.reason.reason);
       }
+      Text += " in "+ (testContent.end - testContent.start) + " ms";
       console.log(Text);
       
     });
