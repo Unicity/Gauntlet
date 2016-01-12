@@ -85,8 +85,8 @@ function wait(func){
         url: "http://"+host+":"+port+"/"+basePath+ test.endpoint,
         encoding:null
       };
-
-      if (typeof input === "object") {
+      
+      if (input && typeof input === "object") {
         var fieldNames = Object.keys(input);
         var formData = {};
         fieldNames.forEach(function(fieldName){
