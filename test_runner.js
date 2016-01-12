@@ -27,9 +27,13 @@ function main(options){
 
   var testPromises = [];
 
+  var testQueue = [];
+
   var tests = Object.keys(testFile);
 
   var client;
+
+
 
   if(options.AWSSecret){
     client = knox.createClient({
@@ -45,6 +49,160 @@ function wait(func){
       func.apply(null, args)
     },100)
   }
+
+  function queueTest(test, queue){
+    queue.push(test);
+  }
+  function processQueue(queue){
+    var promise = q.defer();
+    var tests = queue.slice();
+    done();
+    function done(){
+      var test = queue.shift();
+      if(test){
+        runTest(test).then(function(){
+          done();
+        }, function(){
+          done();
+        });
+      }
+      else{
+        promise.resolve(tests);
+      }
+    }
+    return promise.promise;
+  }
+  function runTest(test){
+    var promise = q.defer();
+    test.start = Date.now();
+    request.post(test.requestOptions, function(err, res, body){
+      test.end = Date.now();
+      var comparePromise;
+      var expectedOutput;
+      var actualOutput;
+      if(err){
+        failTest(test, promise, err);
+        return;
+      }
+      test.headers = res.headers;
+     
+      var response = body.toString();
+      test.responseBody = response;
+      if(!test.outputs){
+        failTest(test, promise, "Test failed: no output file given");
+        return;
+      }
+
+      if(res.statusCode !== 200){
+        failTest(test, promise, "non 200 response code " + res.statusCode);
+        return;
+      }
+
+      
+
+
+      //I hate exceptions
+      try{
+          expectedOutput = fs.readFileSync(path.join(testFolder, test.groupKey, test.name, test.outputs), "utf8").toString();
+      }
+      catch(e){
+        console.log(e);
+        failTest(test, promise, "No output file exists");
+        return;
+      }  
+      
+
+      comparePromise = q.defer();
+
+      if(res.headers["content-type"].indexOf("application/json") > -1){
+        expectedOutput = parseJSON(expectedOutput);
+        actualOutput = parseJSON(response);
+        
+        if(!expectedOutput){
+          failTest(test, promise, "Couldn't parse expected output file as json");
+          return;
+        }
+        if(!actualOutput){
+          failTest(test, promise, "Couldn't parse output from server");
+          return;
+        }
+
+        if(deepCompare(expectedOutput, actualOutput)){
+          test.passed = true;
+          comparePromise.resolve();
+        }
+        else{
+          test.passed = false;
+          test.reason = "Outputs do not match";
+          getDifferencesUrl(actualOutput, expectedOutput, "json", diffUrl, shortenerAPIKey, client).then(function(url){
+            test.reason += " "+url;
+            comparePromise.resolve();
+          });
+        }
+
+        
+      }
+      else if(res.headers["content-type"].indexOf("text/xml") > -1){
+        //For some reason xml parsing is messing stuff up going to run it in a child process
+        var extension = test.outputs.split(".");
+        extension = extension[extension.length - 1];
+        if(extension === "xsd"){
+          var child = childProcess.fork(xmlChildPath);
+          child.send({
+            xml: response,
+            schema: expectedOutput
+          })
+          child.on("message", function(errors){
+             if(!errors){
+              test.passed = true
+              }
+              else{
+                test.passed = false;
+                test.reason = errors[0];
+                
+              }
+            comparePromise.resolve();
+            child.kill();
+          })
+        }
+        else{
+          var actual = JSON.parse(xmlParser.parse(response));
+          var expected = JSON.parse(xmlParser.parse(expectedOutput));
+
+          response = response.replace(/>\s*/g, '>'); 
+          response = response.replace(/\s*</g, '<'); 
+          expectedOutput = expectedOutput.replace(/>\s*/g, '>'); 
+          expectedOutput = expectedOutput.replace(/\s*</g, '<'); 
+
+          if(response === expectedOutput){
+            test.passed = true;
+            comparePromise.resolve();
+          }
+          else{
+            test.passed = false;
+            expectedOutput = expectedOutput.replace(/>/g, '>\n'); 
+            response = response.replace(/>/g, '>\n'); 
+            getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url){
+              test.reason = "Outputs do not match " + url
+              comparePromise.resolve();
+            })
+          }
+        }
+       
+      }
+      comparePromise.promise.then(function(){
+        promise.resolve(test);
+      }, function(){
+        console.log("erroor");
+      }).catch(function(e){
+        console.log(e);
+      });
+        
+    });
+    return promise.promise;
+  }
+
+
   tests.forEach(function(testKey){
     //If there is a test to run from command line only run that one
     var testSubset;
@@ -74,6 +232,7 @@ function wait(func){
         inputs: subTest.files.inputs,
         outputs: subTest.files.output,
         name: subTest.name,
+        groupKey: testKey,
         description: subTest.description
       }
       var promise = q.defer();
@@ -104,147 +263,55 @@ function wait(func){
       }
       //Kill the test if it takes too long
 
-      test.timeout = setTimeout(function(){
-        if(promise.promise.inspect().state === "pending"){
-          test.reason = "timed out";
-          console.log(promise);
-          promise.reject(test);
-        }
-      }, 30 * 1000);
+      // test.timeout = setTimeout(function(){
+      //   if(promise.promise.inspect().state === "pending"){
+      //     test.reason = "timed out";
+      //     console.log(promise);
+      //     promise.reject(test);
+      //   }
+      // }, 30 * 1000);
       
-      test.start = Date.now() - 100;
-      wait(request.post, requestOptions, function(err, res, body){
-         
-        test.end = Date.now();
-        var comparePromise;
-        var expectedOutput;
-        var actualOutput;
-        if(err){
-          failTest(test, promise, err);
-          return;
-        }
-        test.headers = res.headers;
-       
-        var response = body.toString();
-        test.responseBody = response;
-        if(!test.outputs){
-          failTest(test, promise, "Test failed: no output file given");
-          return;
-        }
-
-        if(res.statusCode !== 200){
-          failTest(test, promise, "non 200 response code " + res.statusCode);
-          return;
-        }
-
-        
-
-
-        //I hate exceptions
-        try{
-            expectedOutput = fs.readFileSync(path.join(testFolder, testKey, test.name, test.outputs), "utf8").toString();
-        }
-        catch(e){
-          failTest(test, promise, "No output file exists");
-          return;
-        }  
-        
-
-        comparePromise = q.defer();
-
-        if(res.headers["content-type"].indexOf("application/json") > -1){
-          expectedOutput = parseJSON(expectedOutput);
-          actualOutput = parseJSON(response);
-          
-          if(!expectedOutput){
-            failTest(test, promise, "Couldn't parse expected output file as json");
-            return;
-          }
-          if(!actualOutput){
-            failTest(test, promise, "Couldn't parse output from server");
-            return;
-          }
-
-          if(deepCompare(expectedOutput, actualOutput)){
-            test.passed = true;
-            comparePromise.resolve();
-          }
-          else{
-            test.passed = false;
-            test.reason = "Outputs do not match";
-            getDifferencesUrl(actualOutput, expectedOutput, "json", diffUrl, shortenerAPIKey, client).then(function(url){
-              test.reason += " "+url;
-              comparePromise.resolve();
-            });
-          }
-
-          
-        }
-        else if(res.headers["content-type"].indexOf("text/xml") > -1){
-          //For some reason xml parsing is messing stuff up going to run it in a child process
-          var extension = test.outputs.split(".");
-          extension = extension[extension.length - 1];
-          if(extension === "xsd"){
-            var child = childProcess.fork(xmlChildPath);
-            child.send({
-              xml: response,
-              schema: expectedOutput
-            })
-            child.on("message", function(errors){
-               if(!errors){
-                test.passed = true
-                }
-                else{
-                  test.passed = false;
-                  test.reason = errors[0];
-                  
-                }
-              comparePromise.resolve();
-              child.kill();
-            })
-          }
-          else{
-            var actual = JSON.parse(xmlParser.parse(response));
-            var expected = JSON.parse(xmlParser.parse(expectedOutput));
-
-            response = response.replace(/>\s*/g, '>'); 
-            response = response.replace(/\s*</g, '<'); 
-            expectedOutput = expectedOutput.replace(/>\s*/g, '>'); 
-            expectedOutput = expectedOutput.replace(/\s*</g, '<'); 
-
-            if(response === expectedOutput){
-              test.passed = true;
-              comparePromise.resolve();
-            }
-            else{
-              test.passed = false;
-              expectedOutput = expectedOutput.replace(/>/g, '>\n'); 
-              response = response.replace(/>/g, '>\n'); 
-              getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url){
-                test.reason = "Outputs do not match " + url
-                comparePromise.resolve();
-              })
-            }
-          }
-         
-        }
-        comparePromise.promise.then(function(){
-           
-          if(test.passed){
-            promise.resolve(test);
-          }
-          else{
-              
-            promise.reject(test);
-          }
-        }, function(){
-          console.log("erroor");
-        }).catch(function(e){
-          console.log(e);
-        });
-        
-      });
+      // test.start = Date.now() - 100;
+      test.requestOptions = requestOptions;
+      queueTest(test, testQueue);
     });
+  });
+
+  processQueue(testQueue).then(function(tests){
+    console.log("done testing");
+    var passed = 0;
+    var total = 0;
+    tests.forEach(function(test){
+      var Text = "Test: ";
+      var endPoint = test.endpoint;
+      var subTest = test.name;
+      var testPath = endPoint + "." + subTest;
+      total++;
+      if(verbose){
+        console.log("######################");
+        console.log("------Headers-------");
+        console.log(test.headers);
+        console.log("------Response------");
+        console.log(test.responseBody);
+      }
+      if(test.passed){
+        Text += colors.green(testPath + " passed");
+        passed++;
+      }
+      else{
+        Text += colors.red(testPath + " failed " + test.reason);
+      }
+      Text += " in "+ (test.end - test.start) + " ms";
+      console.log(Text);
+      
+    });
+    console.log(passed+"/"+total+" passed")
+    if(passed === total){
+      process.exit(0);
+    }
+    else{
+      process.exit(1);
+    }
   });
 
   q.allSettled(testPromises).then(function(tests){
@@ -295,7 +362,7 @@ function wait(func){
 function failTest(test, promise, reason){
   test.reason = reason;
   test.passed = false;
-  promise.reject(test);
+  promise.resolve(test);
 }  
 
 function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, client){
