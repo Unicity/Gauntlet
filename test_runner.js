@@ -30,9 +30,7 @@ function main(options){
   var testQueue = [];
 
   var tests = Object.keys(testFile);
-
   var client;
-
 
 
   if(options.AWSSecret){
@@ -42,7 +40,27 @@ function main(options){
       bucket: options.AWSBucket
     })
   }
-
+  function outputTest(test){
+    var Text = "Test: ";
+    var endPoint = test.endpoint;
+    var subTest = test.name;
+    var testPath = endPoint + "." + subTest;
+    if(verbose){
+      console.log("######################");
+      console.log("------Headers-------");
+      console.log(test.headers);
+      console.log("------Response------");
+      console.log(test.responseBody);
+    }
+    if(test.passed){
+      Text += colors.green(testPath + " passed");
+    }
+    else{
+      Text += colors.red(testPath + " failed " + test.reason).trim();
+    }
+    Text += " in "+ (test.end - test.start) + " ms";
+    console.log(Text.trim());
+  }
 function wait(func){
     var args = [].splice.call(arguments,1);
     setTimeout(function(){
@@ -61,9 +79,14 @@ function wait(func){
       var test = queue.shift();
       if(test){
         runTest(test).then(function(){
+          outputTest(test);
           done();
         }, function(){
+          outputTest(test);
           done();
+        }).catch((e)=>{
+          console.log("there was an error process queue");
+          console.log(e);
         });
       }
       else{
@@ -106,15 +129,14 @@ function wait(func){
           expectedOutput = fs.readFileSync(path.join(testFolder, test.groupKey, test.name, test.outputs), "utf8").toString();
       }
       catch(e){
-        console.log(e);
         failTest(test, promise, "No output file exists");
         return;
       }  
-      
 
       comparePromise = q.defer();
-
+      
       if(res.headers["content-type"].indexOf("application/json") > -1){
+         
         expectedOutput = parseJSON(expectedOutput);
         actualOutput = parseJSON(response);
         
@@ -145,6 +167,7 @@ function wait(func){
       else if(res.headers["content-type"].indexOf("text/xml") > -1){
         //For some reason xml parsing is messing stuff up going to run it in a child process
         var extension = test.outputs.split(".");
+
         extension = extension[extension.length - 1];
         if(extension === "xsd"){
           var child = childProcess.fork(xmlChildPath);
@@ -168,7 +191,6 @@ function wait(func){
         else{
           var actual = JSON.parse(xmlParser.parse(response));
           var expected = JSON.parse(xmlParser.parse(expectedOutput));
-
           response = response.replace(/>\s*/g, '>'); 
           response = response.replace(/\s*</g, '<'); 
           expectedOutput = expectedOutput.replace(/>\s*/g, '>'); 
@@ -189,6 +211,20 @@ function wait(func){
           }
         }
        
+      }
+      else{
+        if(response === expectedOutput){
+          test.passed = true;
+          comparePromise.resolve();
+
+        }
+        else{
+          test.passed = false
+          getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url){
+            test.reason = "Outputs do not match " + url
+            comparePromise.resolve();
+          })
+        }
       }
       comparePromise.promise.then(function(){
         promise.resolve(test);
@@ -280,29 +316,11 @@ function wait(func){
   processQueue(testQueue).then(function(tests){
     console.log("done testing");
     var passed = 0;
-    var total = 0;
+    var total = tests.length;
     tests.forEach(function(test){
-      var Text = "Test: ";
-      var endPoint = test.endpoint;
-      var subTest = test.name;
-      var testPath = endPoint + "." + subTest;
-      total++;
-      if(verbose){
-        console.log("######################");
-        console.log("------Headers-------");
-        console.log(test.headers);
-        console.log("------Response------");
-        console.log(test.responseBody);
-      }
       if(test.passed){
-        Text += colors.green(testPath + " passed");
         passed++;
       }
-      else{
-        Text += colors.red(testPath + " failed " + test.reason);
-      }
-      Text += " in "+ (test.end - test.start) + " ms";
-      console.log(Text);
       
     });
     console.log(passed+"/"+total+" passed")
@@ -415,6 +433,7 @@ function sendToS3(obj, name, type, client){
     , 'Content-Type': contentType
   });
   req.on("err", function(err){
+    console.log("there was an error s3");
     console.log(err);
   });
   req.on('response', function(res){
