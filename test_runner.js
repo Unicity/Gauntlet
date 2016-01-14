@@ -117,7 +117,7 @@ function wait(func){
       }
 
       if(res.statusCode !== 200){
-        failTest(test, promise, "non 200 response code " + res.statusCode);
+        failTest(test, promise, "Expected response code '200', but got '" + res.statusCode+"'");
         return;
       }
 
