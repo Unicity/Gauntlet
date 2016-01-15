@@ -109,7 +109,7 @@ function wait(func){
       }
       test.headers = res.headers;
      
-      var response = body.toString();
+      var response = body.toString("utf8");
       test.responseBody = response;
       if(!test.outputs){
         failTest(test, promise, "Test failed: no output file given");
@@ -134,12 +134,10 @@ function wait(func){
       }  
 
       comparePromise = q.defer();
-      
       if(res.headers["content-type"].indexOf("application/json") > -1){
          
         expectedOutput = parseJSON(expectedOutput);
         actualOutput = parseJSON(response);
-        
         if(!expectedOutput){
           failTest(test, promise, "Couldn't parse expected output file as json");
           return;
@@ -156,12 +154,12 @@ function wait(func){
         else{
           test.passed = false;
           test.reason = "Outputs do not match";
-          getDifferencesUrl(actualOutput, expectedOutput, "json", diffUrl, shortenerAPIKey, client).then(function(url){
+          getDifferencesUrl(actualOutput, expectedOutput, "json", diffUrl, shortenerAPIKey, client)
+          .then(function(url){
             test.reason += " "+url;
             comparePromise.resolve();
           });
         }
-
         
       }
       else if(res.headers["content-type"].indexOf("text/xml") > -1){
@@ -213,7 +211,10 @@ function wait(func){
        
       }
       else{
-        if(response === expectedOutput){
+        //standarize line endings
+        var actual = response.replace(/\r\n|\n\r|\n|\r/g, "\n");
+        var expected = expectedOutput.replace(/\r\n|\n\r|\n|\r/g, "\n");
+        if(actual.trim() === expected.trim()){
           test.passed = true;
           comparePromise.resolve();
 
@@ -259,7 +260,7 @@ function wait(func){
     parentTest.tests.forEach(function(subTest){
 
       //If we are running a specific set of inputs only run those
-      if (testSubset && testSubset !== subTestKey) {
+      if (testSubset && testSubset !== subTest.name) {
         return;
       }
 
@@ -288,7 +289,7 @@ function wait(func){
           var field = input[fieldName];
           var filename;
           //Ignore description field
-          formData[fieldName] = fs.readFileSync(path.join(testFolder,testKey,subTest.name, field)).toString();
+          formData[fieldName] = fs.readFileSync(path.join(testFolder,testKey,subTest.name, field));
         });
         requestOptions.formData = formData;
       }
@@ -423,7 +424,7 @@ function sendToS3(obj, name, type, client){
 
   if(type === "json"){
     contentType = "application/json"
-    string = JSON.stringify(obj);
+    string = JSON.stringify(obj, null, 2);
   }
   else{
     contentType = "text/plain"
