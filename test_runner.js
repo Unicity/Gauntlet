@@ -211,7 +211,7 @@ function wait(func){
       }
       else{
         //standarize line endings
-        if(actual.trim() === expected.trim()){
+        if(response.trim() === expectedOutput.trim()){
           test.passed = true;
           comparePromise.resolve();
 
