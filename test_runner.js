@@ -98,6 +98,7 @@ function wait(func){
   function runTest(test){
     var promise = q.defer();
     test.start = Date.now();
+
     request.post(test.requestOptions, function(err, res, body){
       test.end = Date.now();
       var comparePromise;
@@ -132,10 +133,8 @@ function wait(func){
         failTest(test, promise, "No output file exists");
         return;
       }  
-
       comparePromise = q.defer();
       if(res.headers["content-type"].indexOf("application/json") > -1){
-         
         expectedOutput = parseJSON(expectedOutput);
         actualOutput = parseJSON(response);
         if(!expectedOutput){
@@ -212,8 +211,6 @@ function wait(func){
       }
       else{
         //standarize line endings
-        var actual = response.replace(/\r\n|\n\r|\n|\r/g, "\n");
-        var expected = expectedOutput.replace(/\r\n|\n\r|\n|\r/g, "\n");
         if(actual.trim() === expected.trim()){
           test.passed = true;
           comparePromise.resolve();
@@ -491,8 +488,6 @@ function deepCompare(ar1, ar2) {
       matches = ar1 === ar2;
       return matches;
     }
-
-
     if(type1 !== type2){
       matches = false;
     }
@@ -500,26 +495,31 @@ function deepCompare(ar1, ar2) {
       switch(typeof ar1){
         case "object":{
           var keys1 = Object.keys(ar1);
-          var keys2 = Object.keys(ar1);
-         
+          var keys2 = Object.keys(ar2);
+
           if(keys1.length !== keys2.length){
             matches = false;  
           }
-          keys1.every(function(key1, n){
-            if(key1 !== keys2[n]){
-              matches = false; 
-              return matches;
-            }
-            else{
-              matches = deepCompare(ar1[key1], ar2[key1]);
-              return matches;
-            }
-          });
+          else{
+            keys1.every(function(key1, n){
+              if(key1 !== keys2[n]){
+                matches = false; 
+                return matches;
+              }
+              else{
+                matches = deepCompare(ar1[key1], ar2[key1]);
+                return matches;
+              }
+            });
+          }
         }break;
         case "string":
         case "boolean":
         case "number":{
           matches = ar1 === ar2;
+        }break;
+        default:{
+          console.log("what happened")
         }break;
       }
     }
