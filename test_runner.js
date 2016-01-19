@@ -496,7 +496,10 @@ function deepCompare(ar1, ar2) {
         case "object":{
           var keys1 = Object.keys(ar1);
           var keys2 = Object.keys(ar2);
-
+          if(!Array.isArray(ar1)){
+            keys1.sort();
+            keys2.sort();
+          }
           if(keys1.length !== keys2.length){
             matches = false;  
           }
