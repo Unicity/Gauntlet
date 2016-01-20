@@ -4,3 +4,4 @@
 node_modules
 test_script
 testfile*.json
+test_files/

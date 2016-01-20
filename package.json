@@ -1,6 +1,6 @@
 {
   "name": "unicity_gauntlet",
-  "version": "2.2.4",
+  "version": "2.3.0",
   "description": "Run tests, compare output",
   "main": "gauntlet",
   "scripts": {
@@ -18,5 +18,13 @@
     "request": "^2.65.0",
     "underscore": "^1.8.3",
     "xmllint": "^0.1.0"
+  },
+  "eslintConfig": {
+    "ecmaFeatures": {
+      "arrowFunctions": true
+    },
+    "env": {
+        "node": true
+    }
   }
 }

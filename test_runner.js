@@ -1,15 +1,15 @@
 "use strict";
 
-var fs = require("fs");
-var request = require("request");
-var _ = require("underscore");
-var q = require("q");
-var colors = require("colors/safe");
-var path = require("path");
+var fs           = require("fs");
+var request      = require("request");
+var _            = require("underscore");
+var q            = require("q");
+var colors       = require("colors/safe");
+var path         = require("path");
 var xmlChildPath = __dirname+"/xmlChild";
-var knox = require("knox");
+var knox         = require("knox");
 var childProcess = require("child_process");
-var xmlParser = require("./xmlparser.js");
+var xmlParser    = require("./xmlparser.js");
 
 function main(options){
 
@@ -53,7 +53,12 @@ function main(options){
       console.log(test.responseBody);
     }
     if(test.passed){
-      Text += colors.green(testPath + " passed");
+      if(!test.timedOut){
+        Text += colors.green(testPath + " passed");
+      }
+      else{
+        Text+= colors.yellow(testPath + " passed, but took too long (expected time "+ test.ms +"ms)")
+      }
     }
     else{
       Text += colors.red(testPath + " failed " + test.reason).trim();
@@ -108,6 +113,11 @@ function wait(func){
         failTest(test, promise, err);
         return;
       }
+      if(test.ms){
+        if(test.ms < (test.end - test.start)){
+          test.timedOut = true;
+        }
+      }
       test.headers = res.headers;
      
       var response = body.toString("utf8");
@@ -117,7 +127,7 @@ function wait(func){
         return;
       }
 
-      if(res.statusCode !== 200){
+      if((res.statusCode !== 200)){
         failTest(test, promise, "Expected response code '200', but got '" + res.statusCode+"'");
         return;
       }
@@ -267,7 +277,8 @@ function wait(func){
         outputs: subTest.files.output,
         name: subTest.name,
         groupKey: testKey,
-        description: subTest.description
+        description: subTest.description,
+        ms: subTest.ms
       }
       var promise = q.defer();
       testPromises.push(promise.promise);
@@ -312,22 +323,38 @@ function wait(func){
   });
 
   processQueue(testQueue).then(function(tests){
-    console.log("done testing");
     var passed = 0;
+    var warnings = 0;
     var total = tests.length;
     tests.forEach(function(test){
       if(test.passed){
         passed++;
       }
+      if(test.timedOut){
+        warnings++;
+      }
       
     });
-    console.log(passed+"/"+total+" passed")
+    var passingText = passed+"/"+total+" passed";
+    if(passed !== total){
+      passingText = colors.red(passingText);
+    }
+    else{
+      passingText = colors.green(passingText);
+    }
+    console.log(passingText);
+    if(warnings){
+      console.log(colors.yellow(warnings+" warnings"));
+    }
+    console.log("done testing");
     if(passed === total){
       process.exit(0);
     }
     else{
       process.exit(1);
     }
+  }).catch((e)=>{
+    console.log(e);
   });
 
   q.allSettled(testPromises).then(function(tests){
