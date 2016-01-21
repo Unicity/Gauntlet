@@ -30,3 +30,13 @@ Running a specific set of tests.
   `gauntlet <parameters> "testname.subTest" "testname"`
 
 _Test names are automatically URL encoded_
+
+
+###Using the converter
+The format for the test file has changed the converter can convert old format to the new one.
+
+```
+./converter filename
+```
+
+This command will overwrite the old file. If you want to keep the old file I suggest making a backup.
