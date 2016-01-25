@@ -25,7 +25,6 @@ var path         = require("path");
 var xmlChildPath = __dirname+"/xmlChild";
 var knox         = require("knox");
 var childProcess = require("child_process");
-var xmlParser    = require("./xmlparser.js");
 
 function main(options){
 
@@ -211,8 +210,6 @@ function wait(func){
           })
         }
         else{
-          var actual = JSON.parse(xmlParser.parse(response));
-          var expected = JSON.parse(xmlParser.parse(expectedOutput));
           response = response.replace(/>\s*/g, '>'); 
           response = response.replace(/\s*</g, '<'); 
           expectedOutput = expectedOutput.replace(/>\s*/g, '>'); 
