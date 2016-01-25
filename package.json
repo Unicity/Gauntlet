@@ -21,7 +21,8 @@
   },
   "eslintConfig": {
     "ecmaFeatures": {
-      "arrowFunctions": true
+      "arrowFunctions": true,
+      "blockBindings": true
     },
     "env": {
         "node": true

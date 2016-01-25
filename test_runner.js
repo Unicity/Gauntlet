@@ -1,3 +1,19 @@
+/**
+ * Copyright 2015-2016 Unicity International
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 "use strict";
 
 var fs           = require("fs");
@@ -132,9 +148,6 @@ function wait(func){
         return;
       }
 
-      
-
-
       //I hate exceptions
       try{
           expectedOutput = fs.readFileSync(path.join(testFolder, test.groupKey, test.name, test.outputs), "utf8").toString();
@@ -144,6 +157,8 @@ function wait(func){
         return;
       }  
       comparePromise = q.defer();
+
+
       if(res.headers["content-type"].indexOf("application/json") > -1){
         expectedOutput = parseJSON(expectedOutput);
         actualOutput = parseJSON(response);
@@ -347,57 +362,16 @@ function wait(func){
       console.log(colors.yellow(warnings+" warnings"));
     }
     console.log("done testing");
+    var exit = it;
     if(passed === total){
-      process.exit(0);
+      exit(0);
     }
     else{
-      process.exit(1);
+      exit(1);
     }
   }).catch((e)=>{
     console.log(e);
   });
-
-  q.allSettled(testPromises).then(function(tests){
-    var passed = 0;
-    var total = 0;
-    tests.forEach(function(test){
-      var Text = "Test: ";
-      var testContent = test.reason ? test.reason : test.value;
-      var endPoint = testContent.endpoint;
-      var subTest = testContent.name;
-      var testPath = endPoint + "." + subTest;
-      total++;
-      if(verbose){
-        console.log("######################");
-        console.log("------Headers-------");
-        console.log(testContent.headers);
-        console.log("------Response------");
-        console.log(testContent.responseBody);
-      }
-      if(test.state === "fulfilled"){
-        Text += colors.green(testPath + " passed");
-        passed++;
-      }
-      else{
-        Text += colors.red(testPath + " failed " + test.reason.reason);
-      }
-      Text += " in "+ (testContent.end - testContent.start) + " ms";
-      console.log(Text);
-      
-    });
-    console.log(passed+"/"+total+" passed")
-    if(passed === total){
-      process.exit(0);
-    }
-    else{
-      process.exit(1);
-    }
-  }, function(){
-    console.log("tests failed");
-  });
-
-
-
 }
 
 
@@ -410,13 +384,13 @@ function failTest(test, promise, reason){
 
 function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, client){
   var promise = q.defer();
+  var left;
+  var right;
   if(!diffUrl || !shortenerAPIKey){
     promise.resolve("");
   }
   else{
     if(client){
-      var left;
-      var right;
       return sendToS3(actual, "actual-", type,  client).then(function(url){
         right = encodeURI(url);
         return sendToS3(expected, "expected-", type,  client);
@@ -429,8 +403,8 @@ function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, cl
      
     }
     else{
-      var left = encodeURI(JSON.stringify(actual));
-      var right = encodeURI(JSON.stringify(expected));
+      left = encodeURI(JSON.stringify(actual));
+      right = encodeURI(JSON.stringify(expected));
       var url = diffUrl + "?left="+left+"&right="+right;
       return shortenUrl(url, shortenerAPIKey);
     }
