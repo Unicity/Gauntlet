@@ -1,3 +1,8 @@
+[![Code Climate](https://codeclimate.com/github/Unicity/Gauntlet/badges/gpa.svg)](https://codeclimate.com/github/Unicity/Gauntlet)
+[![Issue Count](https://codeclimate.com/github/Unicity/Gauntlet/badges/issue_count.svg)](https://codeclimate.com/github/Unicity/Gauntlet)
+[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/Unicity/Gauntlet.svg)](http://isitmaintained.com/project/Unicity/Gauntlet "Average time to resolve an issue")
+[![Percentage of issues still open](http://isitmaintained.com/badge/open/Unicity/Gauntlet.svg)](http://isitmaintained.com/project/Unicity/Gauntlet "Percentage of issues still open")
+
 Usage:
 
   ```gauntlet [flags] [tests]```

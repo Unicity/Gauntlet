@@ -1,6 +1,10 @@
+.DS_Store
+.idea
+.svn
+
 .nyc_output
 .failed.txt
-.DS_Store
+
 node_modules
 test_script
 testfile*.json
