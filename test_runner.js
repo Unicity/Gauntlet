@@ -22,7 +22,7 @@ var _            = require("underscore");
 var q            = require("q");
 var colors       = require("colors/safe");
 var path         = require("path");
-var xmlChildPath = __dirname+"/xmlChild";
+var xmlChildPath = path.join(__dirname, "/xmlChild");
 var knox         = require("knox");
 var childProcess = require("child_process");
 
@@ -38,7 +38,6 @@ function main(options){
   var shortenerAPIKey  = options.shortenerAPIKey;
   var commandLineTests = options.commandLineTests;
 
-  var testFile = JSON.parse(fs.readFileSync(testFile).toString());
 
   var testPromises = [];
 
@@ -47,6 +46,7 @@ function main(options){
   var tests = Object.keys(testFile);
   var client;
 
+  testFile = JSON.parse(fs.readFileSync(testFile).toString());
 
   if(options.AWSSecret){
     client = knox.createClient({
@@ -68,11 +68,14 @@ function main(options){
       console.log(test.responseBody);
     }
     if(test.passed){
-      if(!test.timedOut){
+      if(!test.timedOut && !test.warnOnTime){
         Text += colors.green(testPath + " passed");
       }
-      else{
+      else if(test.warnOnTime){
         Text+= colors.yellow(testPath + " passed, but took too long (expected time "+ test.ms +"ms)")
+      }
+      else{
+        Text += colors.red(testPath + " outputs matched but took too long (expected time "+ test.ms +"ms)");
       }
     }
     else{
@@ -128,11 +131,8 @@ function wait(func){
         failTest(test, promise, err);
         return;
       }
-      if(test.ms){
-        if(test.ms < (test.end - test.start)){
-          test.timedOut = true;
-        }
-      }
+      testResponseTime(test);
+
       test.headers = res.headers;
      
       var response = body.toString("utf8");
@@ -159,31 +159,7 @@ function wait(func){
 
 
       if(res.headers["content-type"].indexOf("application/json") > -1){
-        expectedOutput = parseJSON(expectedOutput);
-        actualOutput = parseJSON(response);
-        if(!expectedOutput){
-          failTest(test, promise, "Couldn't parse expected output file as json");
-          return;
-        }
-        if(!actualOutput){
-          failTest(test, promise, "Couldn't parse output from server");
-          return;
-        }
-
-        if(deepCompare(expectedOutput, actualOutput)){
-          test.passed = true;
-          comparePromise.resolve();
-        }
-        else{
-          test.passed = false;
-          test.reason = "Outputs do not match";
-          getDifferencesUrl(actualOutput, expectedOutput, "json", diffUrl, shortenerAPIKey, client)
-          .then(function(url){
-            test.reason += " "+url;
-            comparePromise.resolve();
-          });
-        }
-        
+        comparePromise = testJSON(test, expectedOutput, response);
       }
       else if(res.headers["content-type"].indexOf("text/xml") > -1){
         //For some reason xml parsing is messing stuff up going to run it in a child process
@@ -191,43 +167,11 @@ function wait(func){
 
         extension = extension[extension.length - 1];
         if(extension === "xsd"){
-          var child = childProcess.fork(xmlChildPath);
-          child.send({
-            xml: response,
-            schema: expectedOutput
-          })
-          child.on("message", function(errors){
-             if(!errors){
-              test.passed = true
-              }
-              else{
-                test.passed = false;
-                test.reason = errors[0];
-                
-              }
-            comparePromise.resolve();
-            child.kill();
-          })
+          comparePromise = testXMLSchema(test, expectedOutput, response);
+          
         }
         else{
-          response = response.replace(/>\s*/g, '>'); 
-          response = response.replace(/\s*</g, '<'); 
-          expectedOutput = expectedOutput.replace(/>\s*/g, '>'); 
-          expectedOutput = expectedOutput.replace(/\s*</g, '<'); 
-
-          if(response === expectedOutput){
-            test.passed = true;
-            comparePromise.resolve();
-          }
-          else{
-            test.passed = false;
-            expectedOutput = expectedOutput.replace(/>/g, '>\n'); 
-            response = response.replace(/>/g, '>\n'); 
-            getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url){
-              test.reason = "Outputs do not match " + url
-              comparePromise.resolve();
-            })
-          }
+          comparePromise = testXML(test, expectedOutput, response);
         }
        
       }
@@ -339,10 +283,10 @@ function wait(func){
     var warnings = 0;
     var total = tests.length;
     tests.forEach(function(test){
-      if(test.passed){
+      if(test.passed && !test.timedOut){
         passed++;
       }
-      if(test.timedOut){
+      if(test.warnOnTime){
         warnings++;
       }
       
@@ -371,6 +315,95 @@ function wait(func){
   });
 }
 
+function testXMLSchema(test, expected, actual){
+  var promise = q.defer();
+  var child = childProcess.fork(xmlChildPath);
+  child.send({
+    xml: actual,
+    schema: expected
+  })
+  child.on("message", function(errors){
+    if(!errors)
+    {
+      test.passed = true
+    }
+    else
+    {
+      test.passed = false;
+      test.reason = errors[0];
+    }
+    promise.resolve();
+    child.kill();
+  })
+  return promise.promise;
+}
+
+function testXML(test, expected, actual){
+  var promise = q.defer();
+  actual = actual.replace(/>\s*/g, '>'); 
+  actual = actual.replace(/\s*</g, '<'); 
+  expected = expected.replace(/>\s*/g, '>'); 
+  expected = expected.replace(/\s*</g, '<'); 
+
+  if(actual === expected){
+    test.passed = true;
+    promise.resolve();
+  }
+  else{
+    test.passed = false;
+    expected = expected.replace(/>/g, '>\n'); 
+    actual = actual.replace(/>/g, '>\n'); 
+    getDifferencesUrl(actual, expected, "txt",  diffUrl, shortenerAPIKey, client).then(function(url){
+      test.reason = "Outputs do not match " + url
+      promise.resolve();
+    })
+  }
+  return promise.promise;
+}
+
+function testJSON(test, expected, actual){
+  var promise = q.defer();
+  var expectedOutput = parseJSON(expected);
+  var actualOutput = parseJSON(actual);
+  if(!expectedOutput){
+    failTest(test, promise, "Couldn't parse expected output file as json");
+    return;
+  }
+  if(!actualOutput){
+    failTest(test, promise, "Couldn't parse output from server");
+    return;
+  }
+
+  if(deepCompare(expectedOutput, actualOutput)){
+    test.passed = true;
+    promise.resolve();
+  }
+  else{
+    test.passed = false;
+    test.reason = "Outputs do not match";
+    getDifferencesUrl(actualOutput, expectedOutput, "json", diffUrl, shortenerAPIKey, client)
+    .then(function(url){
+      test.reason += " "+url;
+      promise.resolve();
+    });
+  }
+  return promise.promise;
+}
+
+function testResponseTime(test){
+  if(test.ms){
+    var totalTime = test.end - test.start;
+    var maxTime = (0.85 / test.ms);
+    if(test.ms < totalTime){
+      if(maxTime <= totalTime){
+        test.timedOut = true;  
+      }
+      else{
+        test.warnOnTime = true;
+      }
+    }
+  }
+}
 
 //A nice convience function for failign a test
 function failTest(test, promise, reason){
@@ -434,7 +467,7 @@ function sendToS3(obj, name, type, client){
   });
   req.on('response', function(res){
 
-    if (200 == res.statusCode) {
+    if (200 === res.statusCode) {
       promise.resolve(req.url);
     }
     else{
@@ -452,13 +485,15 @@ function shortenUrl(url, shortenerAPIKey){
   request.post({
     url: "https://www.googleapis.com/urlshortener/v1/url?key="+shortenerAPIKey,
     headers: {
-            "content-type": "application/json",
+            "content-type": "application/json"
         },
     body: JSON.stringify({
       "longUrl": url
     })
   }, function(err, res, body){
-    promise.resolve(JSON.parse(body).id);
+    if(!err){
+      promise.resolve(JSON.parse(body).id);
+    }
   });
   return promise.promise;
 }
