@@ -43,11 +43,11 @@ function main(options){
 
   var testQueue = [];
 
-  var tests = Object.keys(testFile);
   var client;
+  var tests; 
 
   testFile = JSON.parse(fs.readFileSync(testFile).toString());
-
+  tests = Object.keys(testFile);
   if(options.AWSSecret){
     client = knox.createClient({
       key: options.AWSKey,
@@ -72,10 +72,10 @@ function main(options){
         Text += colors.green(testPath + " passed");
       }
       else if(test.warnOnTime){
-        Text+= colors.yellow(testPath + " passed, but took too long (expected time "+ test.ms +"ms)")
+        Text+= colors.yellow(testPath + " passed, but exceeded warning threshold (expected time "+ test.ms +" ms. Max run time "+ test.maxTime.toFixed(0)+" ms )")
       }
       else{
-        Text += colors.red(testPath + " outputs matched but took too long (expected time "+ test.ms +"ms)");
+        Text += colors.red(testPath + " outputs matched but took too long (expected time "+ test.ms +" ms. Max run time "+ test.maxTime.toFixed(0)+" ms )");
       }
     }
     else{
@@ -142,7 +142,7 @@ function wait(func){
         return;
       }
 
-      if((res.statusCode !== 200)){
+      if(res.statusCode !== 200){
         failTest(test, promise, "Expected response code '200', but got '" + res.statusCode+"'");
         return;
       }
@@ -202,7 +202,6 @@ function wait(func){
     return promise.promise;
   }
 
-
   tests.forEach(function(testKey){
     //If there is a test to run from command line only run that one
     var testSubset;
@@ -219,6 +218,7 @@ function wait(func){
         return;
       }
     }
+
     var parentTest = testFile[testKey];
     parentTest.tests.forEach(function(subTest){
 
@@ -393,7 +393,10 @@ function testJSON(test, expected, actual){
 function testResponseTime(test){
   if(test.ms){
     var totalTime = test.end - test.start;
-    var maxTime = (0.85 / test.ms);
+
+    var maxTime = (100*test.ms/85);
+    test.maxTime = maxTime;
+    console.log(maxTime);
     if(test.ms < totalTime){
       if(maxTime <= totalTime){
         test.timedOut = true;  
