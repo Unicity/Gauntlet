@@ -72,7 +72,7 @@ function main(options){
         Text += colors.green(testPath + " passed");
       }
       else if(test.warnOnTime){
-        Text+= colors.yellow(testPath + " passed, but exceeded warning threshold (expected time "+ test.ms +" ms. Max run time "+ test.maxTime.toFixed(0)+" ms )")
+        Text+= colors.yellow(testPath + " passed, but exceeded warning threshold (expected time "+ test.ms +" ms. Max run time "+ test.maxTime.toFixed(0)+" ms )");
       }
       else{
         Text += colors.red(testPath + " outputs matched but took too long (expected time "+ test.ms +" ms. Max run time "+ test.maxTime.toFixed(0)+" ms )");
@@ -168,7 +168,6 @@ function wait(func){
         extension = extension[extension.length - 1];
         if(extension === "xsd"){
           comparePromise = testXMLSchema(test, expectedOutput, response);
-          
         }
         else{
           comparePromise = testXML(test, expectedOutput, response);
@@ -183,9 +182,9 @@ function wait(func){
 
         }
         else{
-          test.passed = false
+          test.passed = false;
           getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url){
-            test.reason = "Outputs do not match " + url
+            test.reason = "Outputs do not match " + url;
             comparePromise.resolve();
           })
         }
@@ -193,7 +192,7 @@ function wait(func){
       comparePromise.promise.then(function(){
         promise.resolve(test);
       }, function(){
-        console.log("erroor");
+        console.log("error");
       }).catch(function(e){
         console.log(e);
       });
@@ -213,7 +212,7 @@ function wait(func){
           found = true;
           testSubset = commandLineTest.subTest;
         }
-      })
+      });
       if(!found){
         return;
       }
@@ -235,7 +234,7 @@ function wait(func){
         groupKey: testKey,
         description: subTest.description,
         ms: subTest.ms
-      }
+      };
       var promise = q.defer();
       testPromises.push(promise.promise);
 
@@ -321,11 +320,11 @@ function testXMLSchema(test, expected, actual){
   child.send({
     xml: actual,
     schema: expected
-  })
+  });
   child.on("message", function(errors){
     if(!errors)
     {
-      test.passed = true
+      test.passed = true;
     }
     else
     {
@@ -334,7 +333,7 @@ function testXMLSchema(test, expected, actual){
     }
     promise.resolve();
     child.kill();
-  })
+  });
   return promise.promise;
 }
 
@@ -354,7 +353,7 @@ function testXML(test, expected, actual){
     expected = expected.replace(/>/g, '>\n'); 
     actual = actual.replace(/>/g, '>\n'); 
     getDifferencesUrl(actual, expected, "txt",  diffUrl, shortenerAPIKey, client).then(function(url){
-      test.reason = "Outputs do not match " + url
+      test.reason = "Outputs do not match " + url;
       promise.resolve();
     })
   }
@@ -432,8 +431,6 @@ function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, cl
         var finalUrl = diffUrl + "?left="+left+"&right="+right;
         return shortenUrl(finalUrl, shortenerAPIKey);
       });
-
-     
     }
     else{
       left = encodeURI(JSON.stringify(actual));
@@ -441,7 +438,6 @@ function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, cl
       var url = diffUrl + "?left="+left+"&right="+right;
       return shortenUrl(url, shortenerAPIKey);
     }
-    
   }
   return promise.promise;
 }
@@ -454,11 +450,11 @@ function sendToS3(obj, name, type, client){
   name = name + "."+type;
 
   if(type === "json"){
-    contentType = "application/json"
+    contentType = "application/json";
     string = JSON.stringify(obj, null, 2);
   }
   else{
-    contentType = "text/plain"
+    contentType = "text/plain";
   }
   var req = client.put(name, {
       'Content-Length': Buffer.byteLength(string)
@@ -481,7 +477,6 @@ function sendToS3(obj, name, type, client){
 
   return promise.promise;
 }
-
 
 function shortenUrl(url, shortenerAPIKey){
   var promise = q.defer();
