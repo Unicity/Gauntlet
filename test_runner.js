@@ -87,7 +87,7 @@ function main(options) {
   }
 
   function wait(func) {
-    var args = [].splice.call(arguments,1);
+    var args = [].splice.call(arguments, 1);
     setTimeout(function() {
       func.apply(null, args)
     }, 100);
@@ -149,7 +149,7 @@ function main(options) {
       }
 
       if (res.statusCode !== 200) {
-        failTest(test, promise, "Expected response code '200', but got '" + res.statusCode+ "'");
+        failTest(test, promise, "Expected response code '200', but got '" + res.statusCode + "'");
         return;
       }
 
@@ -162,7 +162,6 @@ function main(options) {
         return;
       }  
       comparePromise = q.defer();
-
 
       if (res.headers["content-type"].indexOf("application/json") > -1) {
         comparePromise = testJSON(test, expectedOutput, response);
@@ -215,8 +214,8 @@ function main(options) {
       var found = false;
       commandLineTests.forEach(function(commandLineTest) {
         if (commandLineTest.test === testKey) {
-          found = true;
           testSubset = commandLineTest.subTest;
+          found = true;
         }
       });
       if (!found) {
@@ -251,7 +250,7 @@ function main(options) {
         encoding:null
       };
       
-      if (input && typeof input === "object") {
+      if (input && (typeof input === "object")) {
         var fieldNames = Object.keys(input);
         var formData = {};
         fieldNames.forEach(function(fieldName) {
@@ -295,7 +294,7 @@ function main(options) {
         warnings++;
       }
     });
-    var passingText = passed+ "/" +total+ " passed";
+    var passingText = passed + "/" + total + " passed";
     if (passed !== total) {
       passingText = colors.red(passingText);
     }
@@ -367,6 +366,7 @@ function testJSON(test, expected, actual) {
   var promise = q.defer();
   var expectedOutput = parseJSON(expected);
   var actualOutput = parseJSON(actual);
+
   if (!expectedOutput) {
     failTest(test, promise, "Couldn't parse expected output file as json");
     return;
@@ -388,6 +388,7 @@ function testJSON(test, expected, actual) {
       promise.resolve();
     });
   }
+
   return promise.promise;
 }
 
@@ -408,7 +409,7 @@ function testResponseTime(test) {
   }
 }
 
-//A nice convience function for failign a test
+//A nice convenience function for failing a test
 function failTest(test, promise, reason) {
   test.reason = reason;
   test.passed = false;
@@ -436,7 +437,7 @@ function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, cl
     else {
       left = encodeURI(JSON.stringify(actual));
       right = encodeURI(JSON.stringify(expected));
-      var url = diffUrl + "?left=" +left+ "&right=" + right;
+      var url = diffUrl + "?left=" + left + "&right=" + right;
       return shortenUrl(url, shortenerAPIKey);
     }
   }
@@ -444,10 +445,11 @@ function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, cl
 }
 
 function sendToS3(obj, name, type, client) {
-  name = name + Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 7);
   var string = obj;
   var promise = q.defer();
   var contentType;
+
+  name = name + Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 7);
   name = name + "." + type;
 
   if (type === "json") {
@@ -481,7 +483,7 @@ function sendToS3(obj, name, type, client) {
 function shortenUrl(url, shortenerAPIKey) {
   var promise = q.defer();
   request.post({
-    url: "https://www.googleapis.com/urlshortener/v1/url?key=" +shortenerAPIKey,
+    url: "https://www.googleapis.com/urlshortener/v1/url?key=" + shortenerAPIKey,
     headers: {
       "content-type": "application/json"
     },
@@ -510,54 +512,54 @@ function parseJSON(string) {
 exports.main = main;
 
 function deepCompare(ar1, ar2) {
-    var matches = true;
-    var type1 = typeof ar1;
-    var type2 = typeof ar2;
+  var matches = true;
+  var type1 = typeof ar1;
+  var type2 = typeof ar2;
 
-    if ((ar1 === null) || (ar2 === null)) {
-      matches = ar1 === ar2;
-      return matches;
-    }
-    if (type1 !== type2) {
-      matches = false;
-    }
-    else {
-      switch(typeof ar1) {
-        case "object": {
-          var keys1 = Object.keys(ar1);
-          var keys2 = Object.keys(ar2);
-          if (!Array.isArray(ar1)) {
-            keys1.sort();
-            keys2.sort();
-          }
-          if (keys1.length !== keys2.length) {
-            matches = false;  
-          }
-          else {
-            keys1.every(function(key1, n) {
-              if (key1 !== keys2[n]) {
-                matches = false; 
-                return matches;
-              }
-              else {
-                matches = deepCompare(ar1[key1], ar2[key1]);
-                return matches;
-              }
-            });
-          }
-          break;
-        }
-        case "string":
-        case "boolean":
-        case "number": {
-          matches = ar1 === ar2;
-          break;
-        }
-        default: {
-          console.log("what happened");
-          break;
-        }
-      }
-    }
+  if ((ar1 === null) || (ar2 === null)) {
+    matches = ar1 === ar2;
     return matches;
   }
+  if (type1 !== type2) {
+    matches = false;
+  }
+  else {
+    switch(typeof ar1) {
+      case "object": {
+        var keys1 = Object.keys(ar1);
+        var keys2 = Object.keys(ar2);
+        if (!Array.isArray(ar1)) {
+          keys1.sort();
+          keys2.sort();
+        }
+        if (keys1.length !== keys2.length) {
+          matches = false;
+        }
+        else {
+          keys1.every(function(key1, n) {
+            if (key1 !== keys2[n]) {
+              matches = false;
+              return matches;
+            }
+            else {
+              matches = deepCompare(ar1[key1], ar2[key1]);
+              return matches;
+            }
+          });
+        }
+        break;
+      }
+      case "string":
+      case "boolean":
+      case "number": {
+        matches = ar1 === ar2;
+        break;
+      }
+      default: {
+        console.log("what happened");
+        break;
+      }
+    }
+  }
+  return matches;
+}
