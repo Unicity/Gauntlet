@@ -72,7 +72,7 @@ function main(options){
         Text += colors.green(testPath + " passed");
       }
       else if(test.warnOnTime){
-        Text+= colors.yellow(testPath + " passed, but exceeded warning threshold (expected time "+ test.ms +" ms. Max run time "+ test.maxTime.toFixed(0)+" ms )");
+        Text += colors.yellow(testPath + " passed, but exceeded warning threshold (expected time "+ test.ms +" ms. Max run time "+ test.maxTime.toFixed(0)+" ms )");
       }
       else{
         Text += colors.red(testPath + " outputs matched but took too long (expected time "+ test.ms +" ms. Max run time "+ test.maxTime.toFixed(0)+" ms )");
@@ -84,16 +84,18 @@ function main(options){
     Text += " in "+ (test.end - test.start) + " ms";
     console.log(Text.trim());
   }
-function wait(func){
+
+  function wait(func){
     var args = [].splice.call(arguments,1);
     setTimeout(function(){
       func.apply(null, args)
-    },100)
+    }, 100);
   }
 
   function queueTest(test, queue){
     queue.push(test);
   }
+
   function processQueue(queue){
     var promise = q.defer();
     var tests = queue.slice();
@@ -107,7 +109,7 @@ function wait(func){
         }, function(){
           outputTest(test);
           done();
-        }).catch((e)=>{
+        }).catch((e) => {
           console.log("there was an error process queue");
           console.log(e);
         });
@@ -118,6 +120,7 @@ function wait(func){
     }
     return promise.promise;
   }
+
   function runTest(test){
     var promise = q.defer();
     test.start = Date.now();
@@ -309,7 +312,7 @@ function wait(func){
     else{
       exit(1);
     }
-  }).catch((e)=>{
+  }).catch((e) => {
     console.log(e);
   });
 }
@@ -457,15 +460,14 @@ function sendToS3(obj, name, type, client){
     contentType = "text/plain";
   }
   var req = client.put(name, {
-      'Content-Length': Buffer.byteLength(string)
-    , 'Content-Type': contentType
+      'Content-Length': Buffer.byteLength(string),
+      'Content-Type': contentType
   });
   req.on("err", function(err){
     console.log("there was an error s3");
     console.log(err);
   });
   req.on('response', function(res){
-
     if (200 === res.statusCode) {
       promise.resolve(req.url);
     }
@@ -483,8 +485,8 @@ function shortenUrl(url, shortenerAPIKey){
   request.post({
     url: "https://www.googleapis.com/urlshortener/v1/url?key="+shortenerAPIKey,
     headers: {
-            "content-type": "application/json"
-        },
+      "content-type": "application/json"
+    },
     body: JSON.stringify({
       "longUrl": url
     })
@@ -507,7 +509,6 @@ function parseJSON(string){
   return result;
 }
 
-
 exports.main = main;
 
 function deepCompare(ar1, ar2) {
@@ -524,7 +525,7 @@ function deepCompare(ar1, ar2) {
     }
     else{
       switch(typeof ar1){
-        case "object":{
+        case "object": {
           var keys1 = Object.keys(ar1);
           var keys2 = Object.keys(ar2);
           if(!Array.isArray(ar1)){
@@ -546,15 +547,18 @@ function deepCompare(ar1, ar2) {
               }
             });
           }
-        }break;
+          break;
+        }
         case "string":
         case "boolean":
-        case "number":{
+        case "number": {
           matches = ar1 === ar2;
-        }break;
-        default:{
-          console.log("what happened")
-        }break;
+          break;
+        }
+        default: {
+          console.log("what happened");
+          break;
+        }
       }
     }
     return matches;
