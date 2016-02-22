@@ -131,7 +131,7 @@ function main(options) {
 
       var comparePromise;
       var expectedOutput;
-      var actualOutput; // FIXME variable is never used
+      var actualOutput; // FIXME unused variable
 
       if (err) {
         failTest(test, promise, err);
@@ -177,14 +177,12 @@ function main(options) {
         else {
           comparePromise = testXML(test, expectedOutput, response);
         }
-       
       }
       else {
         //standarize line endings
         if (response.trim() === expectedOutput.trim()) {
           test.passed = true;
           comparePromise.resolve();
-
         }
         else {
           test.passed = false;
@@ -201,8 +199,8 @@ function main(options) {
       }).catch(function(e) {
         console.log(e);
       });
-        
     });
+
     return promise.promise;
   }
 
@@ -212,7 +210,7 @@ function main(options) {
 
     if (commandLineTests.length) {
       var found = false;
-      commandLineTests.forEach(function(commandLineTest) {
+      commandLineTests.forEach(function(commandLineTest) { // FIXME unnecessarily looping through the entire loop
         if (commandLineTest.test === testKey) {
           testSubset = commandLineTest.subTest;
           found = true;
@@ -227,7 +225,7 @@ function main(options) {
     parentTest.tests.forEach(function(subTest) {
 
       //If we are running a specific set of inputs only run those
-      if (testSubset && testSubset !== subTest.name) {
+      if (testSubset && (testSubset !== subTest.name)) {
         return;
       }
 
@@ -246,18 +244,19 @@ function main(options) {
       var input = test.inputs;
 
       var requestOptions = {
-        url: "http://" +host+ ":" +port+ "/" +basePath+ test.endpoint,
-        encoding:null
+        url: "http://" + host + ":" + port + "/" + basePath + test.endpoint,
+        encoding: null
       };
-      
+
+      // FIXME simplify if/else statement
       if (input && (typeof input === "object")) {
         var fieldNames = Object.keys(input);
         var formData = {};
         fieldNames.forEach(function(fieldName) {
           var field = input[fieldName];
-          var filename;
+          var filename; // FIXME unused variable
           //Ignore description field
-          formData[fieldName] = fs.readFileSync(path.join(testFolder,testKey,subTest.name, field));
+          formData[fieldName] = fs.readFileSync(path.join(testFolder, testKey, subTest.name, field));
         });
         requestOptions.formData = formData;
       }
@@ -296,14 +295,13 @@ function main(options) {
     });
     var passingText = passed + "/" + total + " passed";
     if (passed !== total) {
-      passingText = colors.red(passingText);
+      console.log(colors.red(passingText));
     }
     else {
-      passingText = colors.green(passingText);
+      console.log(colors.green(passingText));
     }
-    console.log(passingText);
     if (warnings) {
-      console.log(colors.yellow(warnings+ " warnings"));
+      console.log(colors.yellow(warnings + " warnings"));
     }
     console.log("done testing");
     var exit = it;
