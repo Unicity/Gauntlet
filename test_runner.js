@@ -102,8 +102,8 @@ function main(options) {
     var tests = queue.slice(); // makes shallow copy
     done();
     function done() {
-      if (!queue.empty()) {
-        var test = queue.shift();
+      var test = queue.shift();
+      if (test) {
         runTest(test).then(function() {
           outputTest(test);
           done();
