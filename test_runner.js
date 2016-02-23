@@ -131,9 +131,10 @@ function main(options) {
 
       var comparePromise;
       var expectedOutput;
-      var actualOutput; // FIXME unused variable
+      var actualOutput;
+      var statusCode = test.status || 200;
+      if(err){
 
-      if (err) {
         failTest(test, promise, err);
         return;
       }
@@ -148,8 +149,8 @@ function main(options) {
         return;
       }
 
-      if (res.statusCode !== 200) {
-        failTest(test, promise, "Expected response code '200', but got '" + res.statusCode + "'");
+      if(res.statusCode !== statusCode){
+        failTest(test, promise, `Expected response code '${statusCode}' , but got '${res.statusCode}'`);
         return;
       }
 
@@ -236,8 +237,9 @@ function main(options) {
         name: subTest.name,
         groupKey: testKey,
         description: subTest.description,
-        ms: subTest.ms
-      };
+        ms: subTest.ms,
+        status: subTest.status
+      }
       var promise = q.defer();
       testPromises.push(promise.promise);
 
@@ -304,8 +306,8 @@ function main(options) {
       console.log(colors.yellow(warnings + " warnings"));
     }
     console.log("done testing");
-    var exit = it;
-    if (passed === total) {
+    var exit = process.exit;
+    if(passed === total){
       exit(0);
     }
     else {
@@ -395,9 +397,8 @@ function testResponseTime(test) {
     var totalTime = test.end - test.start;
     var maxTime = (100 * test.ms) / 85;
     test.maxTime = maxTime;
-    console.log(maxTime);
-    if (test.ms < totalTime) {
-      if (maxTime <= totalTime) {
+    if(test.ms < totalTime){
+      if(maxTime <= totalTime){
         test.timedOut = true;  
       }
       else {
