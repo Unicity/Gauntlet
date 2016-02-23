@@ -162,7 +162,7 @@ function main(options) {
         failTest(test, promise, "No output file exists");
         return;
       }  
-      comparePromise = q.defer();
+      comparePromise = q.defer().promise;
 
       if (res.headers["content-type"].indexOf("application/json") > -1) {
         comparePromise = testJSON(test, expectedOutput, response);
@@ -193,7 +193,7 @@ function main(options) {
           })
         }
       }
-      comparePromise.promise.then(function() {
+      comparePromise.then(function() {
         promise.resolve(test);
       }, function() {
         console.log("error");
