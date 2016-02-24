@@ -162,7 +162,6 @@ function main(options) {
         failTest(test, promise, "No output file exists");
         return;
       }  
-      comparePromise = q.defer();
 
       if (res.headers["content-type"].indexOf("application/json") > -1) {
         comparePromise = testJSON(test, expectedOutput, response);
@@ -180,21 +179,21 @@ function main(options) {
         }
       }
       else {
+        console.log("its just text");
         //standarize line endings
         if (response.trim() === expectedOutput.trim()) {
+          let testPromise = q.defer();
           test.passed = true;
-          comparePromise.resolve();
+          comparePromise = testPromise.promise;
+          testPromise.resolve();
         }
         else {
           test.passed = false;
-          getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url) {
+          comparePromise = getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url) {
             test.reason = "Outputs do not match " + url;
-            comparePromise.resolve();
+            return;
           })
         }
-      }
-      if(comparePromise.promise){
-        comparePromise = comparePromise.promise
       }
       comparePromise.then(function() {
         promise.resolve(test);
