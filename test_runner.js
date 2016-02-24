@@ -179,7 +179,6 @@ function main(options) {
         }
       }
       else {
-        console.log("its just text");
         //standarize line endings
         if (response.trim() === expectedOutput.trim()) {
           let testPromise = q.defer();
