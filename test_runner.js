@@ -31,7 +31,7 @@ function main(options) {
   var host             = options.host; 
   var port             = options.port; 
   var verbose          = options.verbose;
-  var diffUrl          = options.diffUrl; 
+  var diffUrl          = options.diffUrl || ""; 
   var testFile         = options.testFile;
   var basePath         = options.basePath;
   var testFolder       = options.testFolder; 
@@ -55,6 +55,8 @@ function main(options) {
       bucket: options.AWSBucket
     });
   } // FIXME where no secret, 'client' is not initialized
+
+  options.client = client;
 
   function outputTest(test) {
     var Text = "Test: ";
@@ -164,7 +166,7 @@ function main(options) {
       }  
 
       if (res.headers["content-type"].indexOf("application/json") > -1) {
-        comparePromise = testJSON(test, expectedOutput, response);
+        comparePromise = testJSON(test, expectedOutput, response, options);
       }
       else if (res.headers["content-type"].indexOf("text/xml") > -1) {
         //For some reason xml parsing is messing stuff up going to run it in a child process
@@ -175,7 +177,7 @@ function main(options) {
           comparePromise = testXMLSchema(test, expectedOutput, response);
         }
         else {
-          comparePromise = testXML(test, expectedOutput, response);
+          comparePromise = testXML(test, expectedOutput, response, options);
         }
       }
       else {
@@ -319,7 +321,7 @@ function main(options) {
   });
 }
 
-function testXMLSchema(test, expected, actual) {
+function testXMLSchema(test, expected, actual, options) {
   var promise = q.defer();
   var child = childProcess.fork(xmlChildPath);
   child.send({
@@ -340,7 +342,7 @@ function testXMLSchema(test, expected, actual) {
   return promise.promise;
 }
 
-function testXML(test, expected, actual) {
+function testXML(test, expected, actual, options) {
   var promise = q.defer();
   actual = actual.replace(/>\s*/g, '>'); 
   actual = actual.replace(/\s*</g, '<'); 
@@ -355,7 +357,7 @@ function testXML(test, expected, actual) {
     test.passed = false;
     expected = expected.replace(/>/g, '>\n'); 
     actual = actual.replace(/>/g, '>\n'); 
-    getDifferencesUrl(actual, expected, "txt",  diffUrl, shortenerAPIKey, client).then(function(url) {
+    getDifferencesUrl(actual, expected, "txt",  options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
       test.reason = "Outputs do not match " + url;
       promise.resolve();
     })
@@ -363,7 +365,7 @@ function testXML(test, expected, actual) {
   return promise.promise;
 }
 
-function testJSON(test, expected, actual) {
+function testJSON(test, expected, actual, options) {
   var promise = q.defer();
   var expectedOutput = parseJSON(expected);
   var actualOutput = parseJSON(actual);
@@ -384,7 +386,7 @@ function testJSON(test, expected, actual) {
   else {
     test.passed = false;
     test.reason = "Outputs do not match";
-    getDifferencesUrl(actualOutput, expectedOutput, "json", diffUrl, shortenerAPIKey, client).then(function(url) {
+    getDifferencesUrl(actualOutput, expectedOutput, "json", options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
       test.reason += " " + url;
       promise.resolve();
     });
