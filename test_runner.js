@@ -78,7 +78,7 @@ function main(options) {
         Text += colors.yellow(testPath + " passed, but exceeded warning threshold (expected time " + test.ms +" ms. Max run time " + test.maxTime.toFixed(0)+" ms )");
       }
       else {
-        Text += colors.red(testPath + " outputs matched but took too long (expected time " + test.ms +" ms. Max run time " + test.maxTime.toFixed(0)+" ms )");
+        Text += colors.red(testPath + " passed, but took too long (expected time " + test.ms +" ms. Max run time " + test.maxTime.toFixed(0)+" ms )");
       }
     }
     else {
