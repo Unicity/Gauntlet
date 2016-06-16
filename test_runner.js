@@ -127,7 +127,7 @@ function main(options) {
   function runTest(test) {
     var promise = q.defer();
     test.start = Date.now();
-
+    console.log(test.requestOptions);
     request.post(test.requestOptions, function(err, res, body) {
       test.end = Date.now();
 
@@ -247,14 +247,18 @@ function main(options) {
       testPromises.push(promise.promise);
 
       var input = test.inputs;
+      var qs = "";
+      if(subTest.files["input-qs"]){
+        qs = fs.readFileSync(path.join(testFolder, testKey, subTest.name, subTest.files["input-qs"])).toString().trim();
+      }
 
       var requestOptions = {
-        url: "http://" + host + ":" + port + "/" + basePath + test.endpoint,
+        url: "http://" + host + ":" + port + "/" + basePath + test.endpoint + qs,
         encoding: null
       };
-
       // FIXME simplify if/else statement
       if (input && (typeof input === "object")) {
+
         var fieldNames = Object.keys(input);
         var formData = {};
         fieldNames.forEach(function(fieldName) {
