@@ -127,7 +127,6 @@ function main(options) {
   function runTest(test) {
     var promise = q.defer();
     test.start = Date.now();
-    console.log(test.requestOptions);
     request.post(test.requestOptions, function(err, res, body) {
       test.end = Date.now();
 
