@@ -28,13 +28,13 @@ var childProcess = require("child_process");
 
 function main(options) {
 
-  var host             = options.host; 
-  var port             = options.port; 
+  var host             = options.host;
+  var port             = options.port;
   var verbose          = options.verbose;
-  var diffUrl          = options.diffUrl || ""; 
+  var diffUrl          = options.diffUrl || "";
   var testFile         = options.testFile;
   var basePath         = options.basePath;
-  var testFolder       = options.testFolder; 
+  var testFolder       = options.testFolder;
   var shortenerAPIKey  = options.shortenerAPIKey;
   var commandLineTests = options.commandLineTests;
 
@@ -43,7 +43,7 @@ function main(options) {
   var testQueue = [];
 
   var client;
-  var tests; 
+  var tests;
 
   testFile = JSON.parse(fs.readFileSync(testFile).toString());
   tests = Object.keys(testFile);
@@ -63,6 +63,7 @@ function main(options) {
     var endPoint = test.endpoint;
     var subTest = test.name;
     var testPath = endPoint + "." + subTest;
+    console.log(test);
     if (verbose) {
       console.log("######################");
       console.log("------Headers-------");
@@ -71,7 +72,10 @@ function main(options) {
       console.log(test.responseBody);
     }
     if (test.passed) {
-      if (!test.timedOut && !test.warnOnTime) {
+      if(test.ingore){
+        Text += colors.blue(testPath + " passed but was ignored");
+      }
+      else if (!test.timedOut && !test.warnOnTime) {
         Text += colors.green(testPath + " passed");
       }
       else if (test.warnOnTime) {
@@ -82,7 +86,12 @@ function main(options) {
       }
     }
     else {
-      Text += colors.red(testPath + " failed " + test.reason).trim();
+      if(test.ignore){
+          Text += colors.blue(testPath + " failed but was ignored");
+      }
+      else{
+        Text += colors.red(testPath + " failed " + test.reason).trim();
+      }
     }
     Text += " in " + (test.end - test.start) + " ms";
     console.log(Text.trim());
@@ -142,7 +151,7 @@ function main(options) {
       testResponseTime(test);
 
       test.headers = res.headers;
-     
+
       var response = body.toString("utf8");
       test.responseBody = response;
       if (!test.outputs) {
@@ -162,7 +171,7 @@ function main(options) {
       catch(e) {
         failTest(test, promise, "No output file exists");
         return;
-      }  
+      }
 
       if (res.headers["content-type"].indexOf("application/json") > -1) {
         comparePromise = testJSON(test, expectedOutput, response, options);
@@ -188,6 +197,14 @@ function main(options) {
           testPromise.resolve();
         }
         else {
+          var index = 0;
+          var differ = false;
+          while(response[index] || expectedOutput[index]){
+            if(response[index] !== expectedOutput[index] && !differ){
+              differ = true;
+            }
+            index++;
+          }
           test.passed = false;
           comparePromise = getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url) {
             test.reason = "Outputs do not match " + url;
@@ -200,7 +217,7 @@ function main(options) {
       }, function() {
         console.log("error");
       }).catch(function(e) {
-        console.log(e);
+        console.log(e, e.stack);
       });
     });
 
@@ -237,6 +254,7 @@ function main(options) {
         inputs: subTest.files.inputs,
         outputs: subTest.files.output,
         name: subTest.name,
+        ignore: subTest.ignore,
         groupKey: testKey,
         description: subTest.description,
         ms: subTest.ms,
@@ -282,7 +300,7 @@ function main(options) {
       //     promise.reject(test);
       //   }
       // }, 30 * 1000);
-      
+
       // test.start = Date.now() - 100;
       test.requestOptions = requestOptions;
       queueTest(test, testQueue);
@@ -292,13 +310,18 @@ function main(options) {
   processQueue(testQueue).then(function(tests) {
     var passed = 0;
     var warnings = 0;
+    var ignored = 0;
     var total = tests.length;
     tests.forEach(function(test) {
-      if (test.passed && !test.timedOut) {
+      if ((test.passed && !test.timedOut)) {
         passed++;
       }
       if (test.warnOnTime) {
         warnings++;
+      }
+      if(test.ignore){
+        ignored++;
+        total--;
       }
     });
     var passingText = passed + "/" + total + " passed";
@@ -310,6 +333,9 @@ function main(options) {
     }
     if (warnings) {
       console.log(colors.yellow(warnings + " warnings"));
+    }
+    if(ignored){
+      console.log(colors.blue(ignored + " tests ignored"));
     }
     console.log("done testing");
     var exit = process.exit;
@@ -347,10 +373,10 @@ function testXMLSchema(test, expected, actual, options) {
 
 function testXML(test, expected, actual, options) {
   var promise = q.defer();
-  actual = actual.replace(/>\s*/g, '>'); 
-  actual = actual.replace(/\s*</g, '<'); 
-  expected = expected.replace(/>\s*/g, '>'); 
-  expected = expected.replace(/\s*</g, '<'); 
+  actual = actual.replace(/>\s*/g, '>');
+  actual = actual.replace(/\s*</g, '<');
+  expected = expected.replace(/>\s*/g, '>');
+  expected = expected.replace(/\s*</g, '<');
 
   if (actual === expected) {
     test.passed = true;
@@ -358,8 +384,8 @@ function testXML(test, expected, actual, options) {
   }
   else {
     test.passed = false;
-    expected = expected.replace(/>/g, '>\n'); 
-    actual = actual.replace(/>/g, '>\n'); 
+    expected = expected.replace(/>/g, '>\n');
+    actual = actual.replace(/>/g, '>\n');
     getDifferencesUrl(actual, expected, "txt",  options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
       test.reason = "Outputs do not match " + url;
       promise.resolve();
@@ -375,25 +401,26 @@ function testJSON(test, expected, actual, options) {
 
   if (!expectedOutput) {
     failTest(test, promise, "Couldn't parse expected output file as json");
-    return;
   }
-  if (!actualOutput) {
+  else if (!actualOutput) {
     failTest(test, promise, "Couldn't parse output from server");
-    return;
+
+  }
+  else{
+    if (deepCompare(expectedOutput, actualOutput)) {
+      test.passed = true;
+      promise.resolve();
+    }
+    else {
+      test.passed = false;
+      test.reason = "Outputs do not match";
+      getDifferencesUrl(actualOutput, expectedOutput, "json", options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
+        test.reason += " " + url;
+        promise.resolve();
+      });
+    }
   }
 
-  if (deepCompare(expectedOutput, actualOutput)) {
-    test.passed = true;
-    promise.resolve();
-  }
-  else {
-    test.passed = false;
-    test.reason = "Outputs do not match";
-    getDifferencesUrl(actualOutput, expectedOutput, "json", options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
-      test.reason += " " + url;
-      promise.resolve();
-    });
-  }
 
   return promise.promise;
 }
@@ -405,7 +432,7 @@ function testResponseTime(test) {
     test.maxTime = maxTime;
     if(test.ms < totalTime){
       if(maxTime <= totalTime){
-        test.timedOut = true;  
+        test.timedOut = true;
       }
       else {
         test.warnOnTime = true;
@@ -419,7 +446,7 @@ function failTest(test, promise, reason) {
   test.reason = reason;
   test.passed = false;
   promise.resolve(test);
-}  
+}
 
 function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, client) {
   var promise = q.defer();
