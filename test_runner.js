@@ -63,7 +63,6 @@ function main(options) {
     var endPoint = test.endpoint;
     var subTest = test.name;
     var testPath = endPoint + "." + subTest;
-    console.log(test);
     if (verbose) {
       console.log("######################");
       console.log("------Headers-------");
@@ -72,7 +71,7 @@ function main(options) {
       console.log(test.responseBody);
     }
     if (test.passed) {
-      if(test.ingore){
+      if(test.ignore){
         Text += colors.blue(testPath + " passed but was ignored");
       }
       else if (!test.timedOut && !test.warnOnTime) {
@@ -313,7 +312,7 @@ function main(options) {
     var ignored = 0;
     var total = tests.length;
     tests.forEach(function(test) {
-      if ((test.passed && !test.timedOut)) {
+      if ((test.passed && !test.timedOut && !test.ignore)) {
         passed++;
       }
       if (test.warnOnTime) {
