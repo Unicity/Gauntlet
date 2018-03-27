@@ -33,7 +33,7 @@ function main(options) {
   var verbose          = options.verbose;
   var diffUrl          = options.diffUrl || "";
   var testFile         = options.testFile;
-  var basePath         = options.basePath;
+  var basePath         = options.basePath || "";
   var testFolder       = options.testFolder;
   var shortenerAPIKey  = options.shortenerAPIKey;
   var commandLineTests = options.commandLineTests;
