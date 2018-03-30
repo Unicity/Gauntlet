@@ -116,7 +116,7 @@ function main(options) {
       while(running <= max){
         if(!tests.length){
           if(running <= 0){
-            promise.resolve(results);
+            promise.resolve(tests);
           }
           break;
         } else {
