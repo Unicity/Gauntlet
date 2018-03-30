@@ -112,6 +112,7 @@ function main(options) {
     var running = 0;
     var max = options.maxWorkers;
     console.log("running tests with: ", options.maxWorkers, " workers");
+    console.log(tests);
     function fill(){
       while(running <= max){
         if(!tests.length){

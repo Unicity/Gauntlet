@@ -28,7 +28,7 @@ var basePath = "";
 var commandLineTests = [];
 var diffUrl;
 var shortenerAPIKey;
-var flags = ["-p", "-h", "-d", "-f", "-a", "-u", "-g", "--aws-key", "--aws-secret", "--aws-bucket"];
+var flags = ["-p", "-h", "-d", "-f", "-a", "-u", "-g", "--aws-key", "--aws-secret", "--aws-bucket", "-w"];
 var args = process.argv.slice(2);
 
 var options = {
