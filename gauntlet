@@ -32,7 +32,7 @@ var flags = ["-p", "-h", "-d", "-f", "-a", "-u", "-g", "--aws-key", "--aws-secre
 var args = process.argv.slice(2);
 
 var options = {
- 
+ maxWorkers: 10
 };
 
 for (let i = 0; i < args.length; i++){
@@ -69,6 +69,9 @@ for (let i = 0; i < args.length; i++){
       case "--aws-secret": {
         options.AWSSecret = flag.value;
       }break;
+      case "-w": {
+        options.maxWorkers = parseInt(flag.value, 10);
+      }
       case "--aws-bucket": {
         options.AWSBucket = flag.value;
       }break;

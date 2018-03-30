@@ -110,11 +110,12 @@ function main(options) {
     var promise = q.defer();
     var tests = queue.slice(); // makes shallow copy
     var running = 0;
-    var max = 20;
+    var max = options.maxWorkers;
+    console.log("running tests with: ", options.maxWorkers, " workers");
     function fill(){
       while(running <= max){
         if(!tests.length){
-          if(running <= 0){
+          if(running <= 0)0{
             promise.resolve(results);
           }
           break;
