@@ -120,7 +120,7 @@ function main(options) {
           break;
         } else {
           const test = tests.pop();
-          runTest.then(function(){
+          runTest(test).then(function(){
             outputTest(test);
             next();
           }, function(){
