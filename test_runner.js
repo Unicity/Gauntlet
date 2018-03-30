@@ -106,29 +106,41 @@ function main(options) {
   function queueTest(test, queue) {
     queue.push(test);
   }
-
   function processQueue(queue) {
     var promise = q.defer();
     var tests = queue.slice(); // makes shallow copy
-    done();
-    function done() {
-      var test = queue.shift();
-      if (test) {
-        runTest(test).then(function() {
-          outputTest(test);
-          done();
-        }, function() {
-          outputTest(test);
-          done();
-        }).catch((e) => {
-          console.log("there was an error process queue");
-          console.log(e);
-        });
-      }
-      else {
-        promise.resolve(tests);
+    var running = 0;
+    var max = 20;
+    function fill(){
+      while(running <= max){
+        if(!tests.length){
+          if(running <= 0){
+            promise.resolve(results);
+          }
+          break;
+        } else {
+          const test = tests.pop();
+          runTest.then(function(){
+            outputTest(test);
+            next();
+          }, function(){
+            console.log("there was an error process queue");
+            console.log(e);
+          })
+          running++;
+        }
       }
     }
+    function next(result){
+      running -= 1;
+      if(!tests.length && running <= 0){
+        promise.resolve(results);
+
+      } else {
+        fill();
+      }
+    }
+    fill();
     return promise.promise;
   }
 
