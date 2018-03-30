@@ -116,7 +116,7 @@ function main(options) {
       while(running <= max){
         if(!tests.length){
           if(running <= 0){
-            promise.resolve(tests);
+            promise.resolve(queue);
           }
           break;
         } else {
@@ -135,7 +135,7 @@ function main(options) {
     function next(result){
       running -= 1;
       if(!tests.length && running <= 0){
-        promise.resolve(tests);
+        promise.resolve(queue);
 
       } else {
         fill();
