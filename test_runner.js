@@ -135,7 +135,7 @@ function main(options) {
     function next(result){
       running -= 1;
       if(!tests.length && running <= 0){
-        promise.resolve(results);
+        promise.resolve(tests);
 
       } else {
         fill();
