@@ -1,6 +1,6 @@
 {
   "name": "unicity_gauntlet",
-  "version": "2.7.6",
+  "version": "2.7.7",
   "description": "Run tests, compare output",
   "main": "gauntlet",
   "scripts": {
