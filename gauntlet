@@ -104,7 +104,8 @@ if(!options.host || !options.port || !options.testFile || !options.testFolder){
   console.log("    -a the base path for the test endpoints (not required)");
   console.log("    -g Google API key (for url shortening. Not required)");
   console.log("    -u JSON diff url (not required)");
-  console.log("    --aws-secrect AWS secret (not requires)");
+  console.log("    -w max number of concurrent tests. (not required)");
+  console.log("    --aws-secrect AWS secret (not required)");
   console.log("    --aws-key AWS Key (not required)");
   console.log("    --aws-bucket AWS Bucket (not required)");
   return;
