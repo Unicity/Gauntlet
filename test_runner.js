@@ -115,7 +115,7 @@ function main(options) {
     function fill(){
       while(running <= max){
         if(!tests.length){
-          if(running <= 0)0{
+          if(running <= 0){
             promise.resolve(results);
           }
           break;
