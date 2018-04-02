@@ -353,8 +353,8 @@ function main(options) {
     if(ignored){
       console.log(colors.blue(ignored + " tests ignored"));
     }
-    console.log(colors.cyan("Testing comlete in:", wallClockTime));
-    console.log(colors.cyan("Sum of all test runtimes:", totalTestTime));
+    console.log(colors.cyan("Testing comlete in:", wallClockTime/1000, "seconds"));
+    console.log(colors.cyan("Sum of all test runtimes:", totalTestTime/1000, "seconds"));
     console.log(colors.green("Done testing"));
     var exit = process.exit;
     if(passed === total){
