@@ -37,6 +37,7 @@ function main(options) {
   var testFolder       = options.testFolder;
   var shortenerAPIKey  = options.shortenerAPIKey;
   var commandLineTests = options.commandLineTests;
+  var timeStart = Date.now();
 
   var testPromises = [];
 
@@ -324,7 +325,10 @@ function main(options) {
     var warnings = 0;
     var ignored = 0;
     var total = tests.length;
+    var totalTestTime = 0;
+    var wallClockTime = Date.now() - timeStart;
     tests.forEach(function(test) {
+      totalTestTime += test.end - test.start;
       if ((test.passed && !test.timedOut && !test.ignore)) {
         passed++;
       }
@@ -349,7 +353,9 @@ function main(options) {
     if(ignored){
       console.log(colors.blue(ignored + " tests ignored"));
     }
-    console.log("done testing");
+    console.log(colors.cyan("Testing comlete in:", wallClockTime));
+    console.log(colors.cyan("Sum of all test runtimes:", totalTestTime));
+    console.log(colors.green("Done testing"));
     var exit = process.exit;
     if(passed === total){
       exit(0);
