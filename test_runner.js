@@ -403,7 +403,7 @@ function testXML(test, expected, actual, options) {
       } else {
         test.passed = false;
         test.reason = "Outputs do not match";
-        getDifferencesUrl(actual, expected, "text", options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
+        getDifferencesUrl(actual, expected, "txt", options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
           test.reason += " " + url;
           promise.resolve();
         });
