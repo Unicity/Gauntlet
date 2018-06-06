@@ -22,6 +22,7 @@ var _            = require("underscore");
 var q            = require("q");
 var colors       = require("chalk");
 var path         = require("path");
+var xml2js       = require("xml2js");
 var xmlChildPath = path.join(__dirname, "/xmlChild");
 var knox         = require("knox");
 var childProcess = require("child_process");
@@ -391,24 +392,24 @@ function testXMLSchema(test, expected, actual, options) {
 
 function testXML(test, expected, actual, options) {
   var promise = q.defer();
-  actual = actual.replace(/>\s*/g, '>');
-  actual = actual.replace(/\s*</g, '<');
-  expected = expected.replace(/>\s*/g, '>');
-  expected = expected.replace(/\s*</g, '<');
+  xml2js.parseString(actual, function(err, actualJSON){
+    xml2js.parseString(expected, function(err, expectedJSON){
 
-  if (actual === expected) {
-    test.passed = true;
-    promise.resolve();
-  }
-  else {
-    test.passed = false;
-    expected = expected.replace(/>/g, '>\n');
-    actual = actual.replace(/>/g, '>\n');
-    getDifferencesUrl(actual, expected, "txt",  options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
-      test.reason = "Outputs do not match " + url;
-      promise.resolve();
-    })
-  }
+      var valid = deepCompare(actualJSON, expectedJSON);
+
+      if(valid){
+        test.passed = true;
+        promise.resolve();
+      } else {
+        test.passed = false;
+        test.reason = "Outputs do not match";
+        getDifferencesUrl(actual, expected, "text", options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
+          test.reason += " " + url;
+          promise.resolve();
+        });
+      }
+    });
+  });
   return promise.promise;
 }
 
@@ -606,6 +607,7 @@ function deepCompare(ar1, ar2) {
         break;
       }
       default: {
+        console.log(ar1);
         console.log("what happened");
         break;
       }
