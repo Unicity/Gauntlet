@@ -28,7 +28,7 @@ var basePath = "";
 var commandLineTests = [];
 var diffUrl;
 var shortenerAPIKey;
-var flags = ["-p", "-h", "-d", "-f", "-a", "-u", "-g", "--aws-key", "--aws-secret", "--aws-bucket", "-w"];
+var flags = ["-p", "-h", "-d", "-f", "-a", "-u", "-APIKey", "-APIWorkspace", "--aws-key", "--aws-secret", "--aws-bucket", "-w"];
 var args = process.argv.slice(2);
 
 var options = {
@@ -60,8 +60,11 @@ for (let i = 0; i < args.length; i++){
       case "-u": {
         options.diffUrl = flag.value
       }break;
-      case "-g": {
-        options.shortenerAPIKey = flag.value;
+      case "-APIKey" : {
+        options.options.APIKey = flag.value;
+      }break;
+      case "-APIWorkspace" : {
+        options.options.APIWorkspace = flag.value;
       }break;
       case "--aws-key": {
         options.AWSKey = flag.value;

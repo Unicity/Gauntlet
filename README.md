@@ -19,7 +19,9 @@ Usage:
     
     -a the base path for the test endpoints (not required)
     
-    -g Google API key (for url shortening. Not required)
+    -APIKey Rebrandly API key (for url shortening. Not required)
+
+    -APIWorkspace Rebrandly workspace ID (for url shortening. Not required)
     
     -u JSON diff url (not required)
     

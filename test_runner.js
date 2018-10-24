@@ -28,7 +28,6 @@ var knox         = require("knox");
 var childProcess = require("child_process");
 
 function main(options) {
-
   var host             = options.host;
   var port             = options.port;
   var verbose          = options.verbose;
@@ -36,7 +35,8 @@ function main(options) {
   var testFile         = options.testFile;
   var basePath         = options.basePath || "";
   var testFolder       = options.testFolder;
-  var shortenerAPIKey  = options.shortenerAPIKey;
+  var APIKey           = options.APIKey;
+  var APIWorkspace     = options.APIWorkspace;
   var commandLineTests = options.commandLineTests;
   var timeStart = Date.now();
 
@@ -533,19 +533,26 @@ function sendToS3(obj, name, type, client) {
 
 function shortenUrl(url, shortenerAPIKey) {
   var promise = q.defer();
+
   request.post({
-    url: "https://www.googleapis.com/urlshortener/v1/url?key=" + shortenerAPIKey,
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      "longUrl": url
-    })
-  }, function(err, res, body) {
-    if (!err) {
-      promise.resolve(JSON.parse(body).id);
+    'url'    : 'https://api.rebrandly.com/v1/links',
+		'headers' : {
+			'content-type' : 'application/json',
+			'apikey'       : APIKey,
+			'workspace'    : APIWorkspace
+		},
+		'body' : JSON.stringify({
+			'destination' : 'https://letsbuild.net'
+		})
+  }, function (error, response, body) {
+
+    if (error) {
+      throw error
     }
+
+    promise.resolve(JSON.parse(body).shortUrl)
   });
+
   return promise.promise;
 }
 
