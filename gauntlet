@@ -60,12 +60,6 @@ for (let i = 0; i < args.length; i++){
       case "-u": {
         options.diffUrl = flag.value
       }break;
-      case "-APIKey" : {
-        options.options.APIKey = flag.value;
-      }break;
-      case "-APIWorkspace" : {
-        options.options.APIWorkspace = flag.value;
-      }break;
       case "--aws-key": {
         options.AWSKey = flag.value;
       }break;

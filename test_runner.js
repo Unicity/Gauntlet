@@ -35,8 +35,6 @@ function main(options) {
   var testFile         = options.testFile;
   var basePath         = options.basePath || "";
   var testFolder       = options.testFolder;
-  var APIKey           = options.APIKey;
-  var APIWorkspace     = options.APIWorkspace;
   var commandLineTests = options.commandLineTests;
   var timeStart = Date.now();
 
@@ -220,7 +218,7 @@ function main(options) {
             index++;
           }
           test.passed = false;
-          comparePromise = getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, shortenerAPIKey, client).then(function(url) {
+          comparePromise = getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, client).then(function(url) {
             test.reason = "Outputs do not match " + url;
             return;
           })
@@ -403,7 +401,7 @@ function testXML(test, expected, actual, options) {
       } else {
         test.passed = false;
         test.reason = "Outputs do not match";
-        getDifferencesUrl(actualJSON, expectedJSON, "json", options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
+        getDifferencesUrl(actualJSON, expectedJSON, "json", options.diffUrl, options.client).then(function(url) {
           test.reason += " " + url;
           promise.resolve();
         });
@@ -433,7 +431,7 @@ function testJSON(test, expected, actual, options) {
     else {
       test.passed = false;
       test.reason = "Outputs do not match";
-      getDifferencesUrl(actualOutput, expectedOutput, "json", options.diffUrl, options.shortenerAPIKey, options.client).then(function(url) {
+      getDifferencesUrl(actualOutput, expectedOutput, "json", options.diffUrl, options.client).then(function(url) {
         test.reason += " " + url;
         promise.resolve();
       });
@@ -467,11 +465,11 @@ function failTest(test, promise, reason) {
   promise.resolve(test);
 }
 
-function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, client) {
+function getDifferencesUrl(actual, expected, type,  diffUrl, client) {
   var promise = q.defer();
   var left;
   var right;
-  if (!diffUrl || !shortenerAPIKey) {
+  if (!diffUrl) {
     promise.resolve("");
   }
   else {
@@ -482,14 +480,14 @@ function getDifferencesUrl(actual, expected, type,  diffUrl, shortenerAPIKey, cl
       }).then(function(url) {
         left = encodeURI(url);
         var finalUrl = diffUrl + "?left=" + left + "&right=" + right;
-        return shortenUrl(finalUrl, shortenerAPIKey);
+        return shortenUrl(finalUrl);
       });
     }
     else {
       left = encodeURI(JSON.stringify(actual));
       right = encodeURI(JSON.stringify(expected));
       var url = diffUrl + "?left=" + left + "&right=" + right;
-      return shortenUrl(url, shortenerAPIKey);
+      return shortenUrl(url);
     }
   }
   return promise.promise;
@@ -531,26 +529,27 @@ function sendToS3(obj, name, type, client) {
   return promise.promise;
 }
 
-function shortenUrl(url, shortenerAPIKey) {
+function shortenUrl(url) {
   var promise = q.defer();
 
   request.post({
-    'url'    : 'https://api.rebrandly.com/v1/links',
-		'headers' : {
-			'content-type' : 'application/json',
-			'apikey'       : APIKey,
-			'workspace'    : APIWorkspace
-		},
-		'body' : JSON.stringify({
-			'destination' : 'https://letsbuild.net'
-		})
+    'url'    : 'https://dev.unicity.link/create',
+    'headers' : {
+      'content-type' : 'application/json'
+    },
+    'body' : JSON.stringify({
+      'url' : 'https://letsbuild.net'
+    })
   }, function (error, response, body) {
 
     if (error) {
       throw error
     }
 
-    promise.resolve(JSON.parse(body).shortUrl)
+    const json     = JSON.parse(body)
+    const shortUrl = 'https://dev.unicity.link/' + json.shortLink
+
+    promise.resolve(shortUrl)
   });
 
   return promise.promise;
