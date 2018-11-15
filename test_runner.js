@@ -538,7 +538,7 @@ function shortenUrl(url) {
       'content-type' : 'application/json'
     },
     'body' : JSON.stringify({
-      'url' : 'https://letsbuild.net'
+      'url' : url
     })
   }, function (error, response, body) {
 
