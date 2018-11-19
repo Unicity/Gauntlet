@@ -1,0 +1,17 @@
+
+module.exports = {
+	request : (url, callback) => {
+		callback({
+			'url'     : 'https://example.com',
+			'headers' : {
+				'content-type' : 'application/json'
+			},
+			'body' : JSON.stringify({
+				'url' : url
+			})
+		})
+	},
+	response : (data, callback) => {
+		callback(JSON.parse(data).shortLink)
+	}
+}
