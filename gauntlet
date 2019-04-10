@@ -16,124 +16,137 @@
  * limitations under the License.
  */
 
-"use strict";
+'use strict';
 
-var test_runner = require("./test_runner");
-var host;
-var port;
-var verbose = false;
-var testFile;
-var testFolder;
-var basePath = "";
+var test_runner = require('./test_runner');
+
 var commandLineTests = [];
-var diffUrl;
-var shortenerAPIKey;
-var flags = ["-p", "-h", "-d", "-f", "-a", "-u", "-APIKey", "-APIWorkspace", "--aws-key", "--aws-secret", "--aws-bucket", "-w"];
-var args = process.argv.slice(2);
+
+var flags = ['-p', '-h', '-d', '-f', '-a', '-u', '-APIKey', '-APIWorkspace', '--aws-key', '--aws-secret', '--aws-bucket', '-w'];
+var args  = process.argv.slice(2);
 
 var options = {
- maxWorkers: 10
+	maxWorkers : 10
 };
 
 for (let i = 0; i < args.length; i++){
-  let arg = args[i];
-  let flag = getFlag(args, i, flags);
+	let arg  = args[i];
+	let flag = getFlag(args, i, flags);
 
-  if(flag){
-    i += flag.increment;
-    switch(flag.flag){
-      case "-p":{
-        options.port = flag.value
-      }break;
-      case "-h":{
-        options.host = flag.value;
-      }break;
-      case "-d": {
-        options.testFolder = flag.value;
-      }break;
-      case "-f": {
-        options.testFile = flag.value;
-      }break;
-      case "-a": {
-        options.basePath = flag.value;
-      }break;
-      case "-u": {
-        options.diffUrl = flag.value
-      }break;
-      case "--aws-key": {
-        options.AWSKey = flag.value;
-      }break;
-      case "--aws-secret": {
-        options.AWSSecret = flag.value;
-      }break;
-      case "-w": {
-        options.maxWorkers = parseInt(flag.value, 10);
-      }
-      case "--aws-bucket": {
-        options.AWSBucket = flag.value;
-      }break;
+	if (flag) {
+		i += flag.increment;
 
-    }
-  }
-  else if(arg.indexOf("--verborse") > -1 || arg.indexOf("-v") > -1){
-    verbose = true;
-  }
-  else{
-    if(arg.trim()){
-      let testArgs = arg.split(".");
-      if(testArgs.length){
+		switch (flag.flag){
+			case '-p':{
+				options.port = flag.value
+				break;
+			}
 
-        commandLineTests.push({test:encodeURIComponent(testArgs[0]), subTest: testArgs[1]});
-      }
-    }
-  }
+			case '-h':{
+				options.host = flag.value;
+				break;
+			}
+
+			case '-d': {
+				options.testFolder = flag.value;
+				break;
+			}
+
+			case '-f': {
+				options.testFile = flag.value;
+				break;
+			}
+
+			case '-a': {
+				options.basePath = flag.value;
+				break;
+			}
+
+			case '-u': {
+				options.diffUrl = flag.value;
+				break;
+			}
+
+			case '--shortener' : {
+				options.shortener = flag.value;
+				break;
+			}
+
+			case '--aws-key': {
+				options.AWSKey = flag.value;
+				break;
+			}
+
+			case '--aws-secret': {
+				options.AWSSecret = flag.value;
+				break;
+			}
+
+			case '-w': {
+				options.maxWorkers = parseInt(flag.value, 10);
+				break;
+			}
+
+			case '--aws-bucket': {
+				options.AWSBucket = flag.value;
+				break;
+			}
+		}
+
+	} else if (arg.trim()){
+		let testArgs = arg.split('.');
+
+		if (testArgs.length){
+			commandLineTests.push({test : encodeURIComponent(testArgs[0]), subTest : testArgs[1]});
+		}
+	}
 }
 
-if(!options.host || !options.port || !options.testFile || !options.testFolder){
-  console.log("The gauntlet needs all parameters before it can be run");
-  console.log("Usage: ");
-  console.log("gauntlet <parameters> [tests]");
-  console.log("    parameters");
-  console.log("    -p port");
-  console.log("    -h host name");
-  console.log("    -f test file path");
-  console.log("    -d test files directory path");
-  console.log("    -a the base path for the test endpoints (not required)");
-  console.log("    -g Google API key (for url shortening. Not required)");
-  console.log("    -u JSON diff url (not required)");
-  console.log("    -w max number of concurrent tests. (not required)");
-  console.log("    --aws-secrect AWS secret (not required)");
-  console.log("    --aws-key AWS Key (not required)");
-  console.log("    --aws-bucket AWS Bucket (not required)");
-  return;
+if (!options.host || !options.port || !options.testFile || !options.testFolder){
+	console.log('The gauntlet needs all parameters before it can be run');
+	console.log('Usage: ');
+	console.log('gauntlet <parameters> [tests]');
+	console.log('    parameters');
+	console.log('    -p port');
+	console.log('    -h host name');
+	console.log('    -f test file path');
+	console.log('    -d test files directory path');
+	console.log('    -a the base path for the test endpoints (optional)');
+	console.log('    -u JSON diff url (optional)');
+	console.log('    -w max number of concurrent tests. (optional)');
+	console.log('    --shortener path to shortener config js file (optional)');
+	console.log('    --aws-secrect AWS secret (optional)');
+	console.log('    --aws-key AWS Key (optional)');
+	console.log('    --aws-bucket AWS Bucket (optional)');
+	process.exit(1);
 }
 
 options.commandLineTests = commandLineTests;
 test_runner.main(options);
 
-function getFlag(args, index, flags){
-  var result = {increment: 0};
-  var found;
-  flags.forEach(function(f){
-    if(args[index].indexOf(f) > -1){
-      found = true;
-      let attached = args[index].split(f);
+function getFlag (args, index, flags){
+	var result = {increment : 0};
+	var found;
+	flags.forEach(function (f){
+		if (args[index].indexOf(f) > -1){
+			found        = true;
+			let attached = args[index].split(f);
 
-      result.flag = f;
+			result.flag = f;
 
-      if(attached[1]){
-        result.value = attached[1];
-      }
-      else{
-        result.value = args[index+1];
-        result.increment = 1;
-      }
-    }
-  })
-  if(found){
-    return result;
-  }
-  else{
-    return null;
-  }
+			if (attached[1]){
+				result.value = attached[1];
+			}
+			else {
+				result.value     = args[index+1];
+				result.increment = 1;
+			}
+		}
+	})
+	if (found){
+		return result;
+	}
+	else {
+		return null;
+	}
 }

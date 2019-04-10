@@ -18,146 +18,143 @@
 
 const fs           = require('fs')
 const request      = require('request')
-const _            = require('underscore')
 const q            = require('q')
 const colors       = require('chalk')
 const path         = require('path')
 const xml2js       = require('xml2js')
 const knox         = require('knox')
 const childProcess = require('child_process')
-const API          = require('./API.js')
 
 var xmlChildPath = path.join(__dirname, '/xmlChild')
 
-function main(options) {
+const self = {}
+
+function main (options) {
+	self.options = options;
+
 	var host             = options.host;
 	var port             = options.port;
 	var verbose          = options.verbose;
-	var diffUrl          = options.diffUrl || "";
+	var diffUrl          = options.diffUrl || '';
 	var testFile         = options.testFile;
-	var basePath         = options.basePath || "";
+	var basePath         = options.basePath || '';
 	var testFolder       = options.testFolder;
 	var commandLineTests = options.commandLineTests;
-	var timeStart = Date.now();
 
+	var timeStart    = Date.now();
 	var testPromises = [];
-
-	var testQueue = [];
+	var testQueue    = [];
 
 	var client;
 	var tests;
 
 	testFile = JSON.parse(fs.readFileSync(testFile).toString());
-	tests = Object.keys(testFile);
+	tests    = Object.keys(testFile);
 
 	if (options.AWSSecret) {
 		client = knox.createClient({
-			key: options.AWSKey,
-			secret: options.AWSSecret,
-			bucket: options.AWSBucket
+			key    : options.AWSKey,
+			secret : options.AWSSecret,
+			bucket : options.AWSBucket
 		});
 	} // FIXME where no secret, 'client' is not initialized
 
 	options.client = client;
 
-	function outputTest(test) {
-		var Text = "Test: ";
+	function outputTest (test) {
+		var Text     = 'Test: ';
 		var endPoint = test.endpoint;
-		var subTest = test.name;
-		var testPath = endPoint + "." + subTest;
+		var subTest  = test.name;
+		var testPath = endPoint + '.' + subTest;
+
 		if (verbose) {
-			console.log("######################");
-			console.log("------Headers-------");
+			console.log('######################');
+			console.log('------Headers-------');
 			console.log(test.headers);
-			console.log("------Response------");
+			console.log('------Response------');
 			console.log(test.responseBody);
 		}
+
 		if (test.passed) {
-			if(test.ignore){
-				Text += colors.blue(testPath + " passed but was ignored");
+			if (test.ignore){
+				Text += colors.blue(testPath + ' passed but was ignored');
+
+			} else if (!test.timedOut && !test.warnOnTime) {
+				Text += colors.green(testPath + ' passed');
+
+			} else if (test.warnOnTime) {
+				Text += colors.yellow(testPath + ' passed, but exceeded warning threshold (expected time ' + test.ms +' ms. Max run time ' + test.maxTime.toFixed(0)+' ms )');
+
+			} else {
+				Text += colors.red(testPath + ' passed, but took too long (expected time ' + test.ms +' ms. Max run time ' + test.maxTime.toFixed(0)+' ms )');
 			}
-			else if (!test.timedOut && !test.warnOnTime) {
-				Text += colors.green(testPath + " passed");
-			}
-			else if (test.warnOnTime) {
-				Text += colors.yellow(testPath + " passed, but exceeded warning threshold (expected time " + test.ms +" ms. Max run time " + test.maxTime.toFixed(0)+" ms )");
-			}
-			else {
-				Text += colors.red(testPath + " passed, but took too long (expected time " + test.ms +" ms. Max run time " + test.maxTime.toFixed(0)+" ms )");
-			}
+
+		} else if (test.ignore){
+			Text += colors.blue(testPath + ' failed but was ignored');
+
+		} else {
+			Text += colors.red(testPath + ' failed ' + test.reason).trim();
 		}
-		else {
-			if(test.ignore){
-					Text += colors.blue(testPath + " failed but was ignored");
-			}
-			else{
-				Text += colors.red(testPath + " failed " + test.reason).trim();
-			}
-		}
-		Text += " in " + (test.end - test.start) + " ms";
+
+		Text += ' in ' + (test.end - test.start) + ' ms';
 		console.log(Text.trim());
 	}
 
-	function wait(func) {
-		var args = [].splice.call(arguments, 1);
-		setTimeout(function() {
-			func.apply(null, args)
-		}, 100);
-	}
-
-	function queueTest(test, queue) {
+	function queueTest (test, queue) {
 		queue.push(test);
 	}
-	function processQueue(queue) {
+
+	function processQueue (queue) {
 		var promise = q.defer();
 		var tests = queue.slice(); // makes shallow copy
 		var running = 0;
 		var max = options.maxWorkers;
-		console.log("running tests with: ", options.maxWorkers, " workers");
-		function fill(){
-			while(running <= max){
-				if(!tests.length){
-					if(running <= 0){
+		console.log('running tests with: ', options.maxWorkers, ' workers');
+
+		function fill (){
+			while (running <= max){
+				if (!tests.length){
+					if (running <= 0){
 						promise.resolve(queue);
 					}
 					break;
 				} else {
 					const test = tests.pop();
-					runTest(test).then(function(){
+					runTest(test).then(function (){
 						outputTest(test);
 						next();
-					}, function(){
-						console.log("there was an error process queue");
+					}, function (e){
+						console.log('there was an error process queue');
 						console.log(e);
 					})
 					running++;
 				}
 			}
 		}
-		function next(result){
+
+		function next (){
 			running -= 1;
-			if(!tests.length && running <= 0){
+			if (!tests.length && running <= 0){
 				promise.resolve(queue);
 
 			} else {
 				fill();
 			}
 		}
+
 		fill();
 		return promise.promise;
 	}
 
-	function runTest(test) {
+	function runTest (test) {
 		var promise = q.defer();
 		test.start = Date.now();
-		request.post(test.requestOptions, function(err, res, body) {
+		request.post(test.requestOptions, function (err, res, body) {
 			test.end = Date.now();
-
 			var comparePromise;
 			var expectedOutput;
-			var actualOutput;
 			var statusCode = test.status || 200;
-			if(err){
+			if (err){
 
 				failTest(test, promise, err);
 				return;
@@ -166,36 +163,36 @@ function main(options) {
 
 			test.headers = res.headers;
 
-			var response = body.toString("utf8");
+			var response = body.toString('utf8');
 			test.responseBody = response;
 			if (!test.outputs) {
-				failTest(test, promise, "Test failed: no output file given");
+				failTest(test, promise, 'Test failed: no output file given');
 				return;
 			}
 
-			if(res.statusCode !== statusCode){
+			if (res.statusCode !== statusCode){
 				failTest(test, promise, `Expected response code '${statusCode}' , but got '${res.statusCode}'`);
 				return;
 			}
 
 			//I hate exceptions
 			try {
-					expectedOutput = fs.readFileSync(path.join(testFolder, test.groupKey, test.name, test.outputs), "utf8").toString();
+				expectedOutput = fs.readFileSync(path.join(testFolder, test.groupKey, test.name, test.outputs), 'utf8').toString();
 			}
-			catch(e) {
-				failTest(test, promise, "No output file exists");
+			catch (e) {
+				failTest(test, promise, 'No output file exists');
 				return;
 			}
 
-			if (res.headers["content-type"].indexOf("application/json") > -1) {
+			if (res.headers['content-type'].indexOf('application/json') > -1) {
 				comparePromise = testJSON(test, expectedOutput, response, options);
 			}
-			else if (res.headers["content-type"].indexOf("text/xml") > -1) {
+			else if (res.headers['content-type'].indexOf('text/xml') > -1) {
 				//For some reason xml parsing is messing stuff up going to run it in a child process
-				var extension = test.outputs.split(".");
+				var extension = test.outputs.split('.');
 
 				extension = extension[extension.length - 1];
-				if (extension === "xsd") {
+				if (extension === 'xsd') {
 					comparePromise = testXMLSchema(test, expectedOutput, response);
 				}
 				else {
@@ -213,24 +210,24 @@ function main(options) {
 				else {
 					var index = 0;
 					var differ = false;
-					while(response[index] || expectedOutput[index]){
-						if(response[index] !== expectedOutput[index] && !differ){
+					while (response[index] || expectedOutput[index]){
+						if (response[index] !== expectedOutput[index] && !differ){
 							differ = true;
 						}
 						index++;
 					}
 					test.passed = false;
-					comparePromise = getDifferencesUrl(response, expectedOutput, "txt",  diffUrl, client).then(function(url) {
-						test.reason = "Outputs do not match " + url;
+					comparePromise = getDifferencesUrl(response, expectedOutput, 'txt',  diffUrl, client).then(function (url) {
+						test.reason = 'Outputs do not match ' + url;
 						return;
 					})
 				}
 			}
-			comparePromise.then(function() {
+			comparePromise.then(function () {
 				promise.resolve(test);
-			}, function() {
-				console.log("error");
-			}).catch(function(e) {
+			}, function () {
+				console.log('error');
+			}).catch(function (e) {
 				console.log(e, e.stack);
 			});
 		});
@@ -238,13 +235,13 @@ function main(options) {
 		return promise.promise;
 	}
 
-	tests.forEach(function(testKey) {
+	tests.forEach(function (testKey) {
 		//If there is a test to run from command line only run that one
 		var testSubset;
 
 		if (commandLineTests.length) {
 			var found = false;
-			commandLineTests.forEach(function(commandLineTest) { // FIXME unnecessarily looping through the entire loop
+			commandLineTests.forEach(function (commandLineTest) { // FIXME unnecessarily looping through the entire loop
 				if (commandLineTest.test === testKey) {
 					testSubset = commandLineTest.subTest;
 					found = true;
@@ -256,7 +253,7 @@ function main(options) {
 		}
 
 		var parentTest = testFile[testKey];
-		parentTest.tests.forEach(function(subTest) {
+		parentTest.tests.forEach(function (subTest) {
 
 			//If we are running a specific set of inputs only run those
 			if (testSubset && (testSubset !== subTest.name)) {
@@ -264,37 +261,36 @@ function main(options) {
 			}
 
 			var test = {
-				endpoint: parentTest.endpoint,
-				inputs: subTest.files.inputs,
-				outputs: subTest.files.output,
-				name: subTest.name,
-				ignore: subTest.ignore,
-				groupKey: testKey,
-				description: subTest.description,
-				ms: subTest.ms,
-				status: subTest.status
+				endpoint    : parentTest.endpoint,
+				inputs      : subTest.files.inputs,
+				outputs     : subTest.files.output,
+				name        : subTest.name,
+				ignore      : subTest.ignore,
+				groupKey    : testKey,
+				description : subTest.description,
+				ms          : subTest.ms,
+				status      : subTest.status
 			}
 			var promise = q.defer();
 			testPromises.push(promise.promise);
 
 			var input = test.inputs;
-			var qs = "";
-			if(subTest.files["input-qs"]){
-				qs = fs.readFileSync(path.join(testFolder, testKey, subTest.name, subTest.files["input-qs"])).toString().trim();
+			var qs = '';
+			if (subTest.files['input-qs']){
+				qs = fs.readFileSync(path.join(testFolder, testKey, subTest.name, subTest.files['input-qs'])).toString().trim();
 			}
 
 			var requestOptions = {
-				url: "http://" + host + ":" + port + "/" + basePath + test.endpoint + qs,
-				encoding: null
+				url      : 'http://' + host + ':' + port + '/' + basePath + test.endpoint + qs,
+				encoding : null
 			};
 			// FIXME simplify if/else statement
-			if (input && (typeof input === "object")) {
+			if (input && (typeof input === 'object')) {
 
 				var fieldNames = Object.keys(input);
 				var formData = {};
-				fieldNames.forEach(function(fieldName) {
+				fieldNames.forEach(function (fieldName) {
 					var field = input[fieldName];
-					var filename; // FIXME unused variable
 					//Ignore description field
 					formData[fieldName] = fs.readFileSync(path.join(testFolder, testKey, subTest.name, field));
 				});
@@ -321,14 +317,14 @@ function main(options) {
 		});
 	});
 
-	processQueue(testQueue).then(function(tests) {
+	processQueue(testQueue).then(function (tests) {
 		var passed = 0;
 		var warnings = 0;
 		var ignored = 0;
 		var total = tests.length;
 		var totalTestTime = 0;
 		var wallClockTime = Date.now() - timeStart;
-		tests.forEach(function(test) {
+		tests.forEach(function (test) {
 			totalTestTime += test.end - test.start;
 			if ((test.passed && !test.timedOut && !test.ignore)) {
 				passed++;
@@ -336,12 +332,12 @@ function main(options) {
 			if (test.warnOnTime) {
 				warnings++;
 			}
-			if(test.ignore){
+			if (test.ignore){
 				ignored++;
 				total--;
 			}
 		});
-		var passingText = passed + "/" + total + " passed";
+		var passingText = passed + '/' + total + ' passed';
 		if (passed !== total) {
 			console.log(colors.red(passingText));
 		}
@@ -349,16 +345,16 @@ function main(options) {
 			console.log(colors.green(passingText));
 		}
 		if (warnings) {
-			console.log(colors.yellow(warnings + " warnings"));
+			console.log(colors.yellow(warnings + ' warnings'));
 		}
-		if(ignored){
-			console.log(colors.blue(ignored + " tests ignored"));
+		if (ignored){
+			console.log(colors.blue(ignored + ' tests ignored'));
 		}
-		console.log(colors.cyan("Testing comlete in:", wallClockTime/1000, "seconds"));
-		console.log(colors.cyan("Sum of all test runtimes:", totalTestTime/1000, "seconds"));
-		console.log(colors.green("Done testing"));
+		console.log(colors.cyan('Testing comlete in:', wallClockTime/1000, 'seconds'));
+		console.log(colors.cyan('Sum of all test runtimes:', totalTestTime/1000, 'seconds'));
+		console.log(colors.green('Done testing'));
 		var exit = process.exit;
-		if(passed === total){
+		if (passed === total){
 			exit(0);
 		}
 		else {
@@ -369,14 +365,14 @@ function main(options) {
 	});
 }
 
-function testXMLSchema(test, expected, actual, options) {
+function testXMLSchema (test, expected, actual) {
 	var promise = q.defer();
 	var child = childProcess.fork(xmlChildPath);
 	child.send({
-		xml: actual,
-		schema: expected
+		xml    : actual,
+		schema : expected
 	});
-	child.on("message", function(errors) {
+	child.on('message', function (errors) {
 		if (!errors) {
 			test.passed = true;
 		}
@@ -390,21 +386,21 @@ function testXMLSchema(test, expected, actual, options) {
 	return promise.promise;
 }
 
-function testXML(test, expected, actual, options) {
+function testXML (test, expected, actual, options) {
 	var promise = q.defer();
-	xml2js.parseString(actual, function(err, actualJSON){
-		xml2js.parseString(expected, function(err, expectedJSON){
+	xml2js.parseString(actual, function (err, actualJSON){
+		xml2js.parseString(expected, function (err, expectedJSON){
 
 			var valid = deepCompare(actualJSON, expectedJSON);
 
-			if(valid){
+			if (valid){
 				test.passed = true;
 				promise.resolve();
 			} else {
 				test.passed = false;
-				test.reason = "Outputs do not match";
-				getDifferencesUrl(actualJSON, expectedJSON, "json", options.diffUrl, options.client).then(function(url) {
-					test.reason += " " + url;
+				test.reason = 'Outputs do not match';
+				getDifferencesUrl(actualJSON, expectedJSON, 'json', options.diffUrl, options.client).then(function (url) {
+					test.reason += ' ' + url;
 					promise.resolve();
 				});
 			}
@@ -413,28 +409,28 @@ function testXML(test, expected, actual, options) {
 	return promise.promise;
 }
 
-function testJSON(test, expected, actual, options) {
+function testJSON (test, expected, actual, options) {
 	var promise = q.defer();
 	var expectedOutput = parseJSON(expected);
 	var actualOutput = parseJSON(actual);
 
 	if (!expectedOutput) {
-		failTest(test, promise, "Couldn't parse expected output file as json");
+		failTest(test, promise, 'Couldn\'t parse expected output file as json');
 	}
 	else if (!actualOutput) {
-		failTest(test, promise, "Couldn't parse output from server");
+		failTest(test, promise, 'Couldn\'t parse output from server');
 
 	}
-	else{
+	else {
 		if (deepCompare(expectedOutput, actualOutput)) {
 			test.passed = true;
 			promise.resolve();
 		}
 		else {
 			test.passed = false;
-			test.reason = "Outputs do not match";
-			getDifferencesUrl(actualOutput, expectedOutput, "json", options.diffUrl, options.client).then(function(url) {
-				test.reason += " " + url;
+			test.reason = 'Outputs do not match';
+			getDifferencesUrl(actualOutput, expectedOutput, 'json', options.diffUrl, options.client).then(function (url) {
+				test.reason += ' ' + url;
 				promise.resolve();
 			});
 		}
@@ -444,13 +440,13 @@ function testJSON(test, expected, actual, options) {
 	return promise.promise;
 }
 
-function testResponseTime(test) {
+function testResponseTime (test) {
 	if (test.ms) {
 		var totalTime = test.end - test.start;
 		var maxTime = (100 * test.ms) / 85;
 		test.maxTime = maxTime;
-		if(test.ms < totalTime){
-			if(maxTime <= totalTime){
+		if (test.ms < totalTime){
+			if (maxTime <= totalTime){
 				test.timedOut = true;
 			}
 			else {
@@ -461,69 +457,69 @@ function testResponseTime(test) {
 }
 
 //A nice convenience function for failing a test
-function failTest(test, promise, reason) {
+function failTest (test, promise, reason) {
 	test.reason = reason;
 	test.passed = false;
 	promise.resolve(test);
 }
 
-function getDifferencesUrl(actual, expected, type,  diffUrl, client) {
+function getDifferencesUrl (actual, expected, type,  diffUrl, client) {
 	var promise = q.defer();
 	var left;
 	var right;
 	if (!diffUrl) {
-		promise.resolve("");
+		promise.resolve('');
 	}
 	else {
 		if (client) {
-			return sendToS3(actual, "actual-", type,  client).then(function(url) {
+			return sendToS3(actual, 'actual-', type,  client).then(function (url) {
 				right = encodeURI(url);
-				return sendToS3(expected, "expected-", type,  client);
-			}).then(function(url) {
+				return sendToS3(expected, 'expected-', type,  client);
+			}).then(function (url) {
 				left = encodeURI(url);
-				var finalUrl = diffUrl + "?left=" + left + "&right=" + right;
+				var finalUrl = diffUrl + '?left=' + left + '&right=' + right;
 				return shortenUrl(finalUrl);
 			});
 		}
 		else {
 			left = encodeURI(JSON.stringify(actual));
 			right = encodeURI(JSON.stringify(expected));
-			var url = diffUrl + "?left=" + left + "&right=" + right;
+			var url = diffUrl + '?left=' + left + '&right=' + right;
 			return shortenUrl(url);
 		}
 	}
 	return promise.promise;
 }
 
-function sendToS3(obj, name, type, client) {
+function sendToS3 (obj, name, type, client) {
 	var string = obj;
 	var promise = q.defer();
 	var contentType;
 
 	name = name + Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 7);
-	name = name + "." + type;
+	name = name + '.' + type;
 
-	if (type === "json") {
-		contentType = "application/json";
+	if (type === 'json') {
+		contentType = 'application/json';
 		string = JSON.stringify(obj, null, 2);
 	}
 	else {
-		contentType = "text/plain";
+		contentType = 'text/plain';
 	}
 	var req = client.put(name, {
-			'Content-Length': Buffer.byteLength(string),
-			'Content-Type': contentType
+		'Content-Length' : Buffer.byteLength(string),
+		'Content-Type'   : contentType
 	});
-	req.on("err", function(err) {
-		console.log("there was an error s3");
+	req.on('err', function (err) {
+		console.log('there was an error s3');
 		console.log(err);
 	});
-	req.on('response', function(res) {
+	req.on('response', function (res) {
 		if (200 === res.statusCode) {
 			promise.resolve(req.url);
 		}
 		else {
-			promise.resolve("");
+			promise.resolve('');
 		}
 	});
 	req.end(string);
@@ -531,18 +527,14 @@ function sendToS3(obj, name, type, client) {
 	return promise.promise;
 }
 
-function shortenUrl(url) {
+function shortenUrl (url) {
+	if (typeof self.options === 'object'
+	&&  typeof self.options.shortenerDir === 'string'
+	&&  fs.existsSync(self.options.shortenerDir)) {
+		const promise   = q.defer();
+		const shortener = require(self.options.shortenerDir)
 
-	if (API.urlShortener) {
-		var promise = q.defer();
-
-		request.post(API.urlShortener.request(url), (error, response, body) => {
-			if (error) {
-				throw error
-			}
-
-			promise.resolve(API.urlShortener.response(body))
-		})
+		shortener(url, promise.resolve)
 
 		return promise.promise
 	}
@@ -550,12 +542,12 @@ function shortenUrl(url) {
 	return url
 }
 
-function parseJSON(string) {
+function parseJSON (string) {
 	var result;
 	try {
 		result = JSON.parse(string);
 	}
-	catch(e) {
+	catch (e) {
 		result = null;
 	}
 	return result;
@@ -563,7 +555,7 @@ function parseJSON(string) {
 
 exports.main = main;
 
-function deepCompare(ar1, ar2) {
+function deepCompare (ar1, ar2) {
 	var matches = true;
 	var type1 = typeof ar1;
 	var type2 = typeof ar2;
@@ -576,8 +568,8 @@ function deepCompare(ar1, ar2) {
 		matches = false;
 	}
 	else {
-		switch(typeof ar1) {
-			case "object": {
+		switch (typeof ar1) {
+			case 'object': {
 				var keys1 = Object.keys(ar1);
 				var keys2 = Object.keys(ar2);
 				if (!Array.isArray(ar1)) {
@@ -588,7 +580,7 @@ function deepCompare(ar1, ar2) {
 					matches = false;
 				}
 				else {
-					keys1.every(function(key1, n) {
+					keys1.every(function (key1, n) {
 						if (key1 !== keys2[n]) {
 							matches = false;
 							return matches;
@@ -601,15 +593,15 @@ function deepCompare(ar1, ar2) {
 				}
 				break;
 			}
-			case "string":
-			case "boolean":
-			case "number": {
+			case 'string':
+			case 'boolean':
+			case 'number': {
 				matches = ar1 === ar2;
 				break;
 			}
 			default: {
 				console.log(ar1);
-				console.log("what happened");
+				console.log('what happened');
 				break;
 			}
 		}

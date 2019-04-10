@@ -17,17 +17,19 @@ Usage:
 
     -d test files directory path
 
-    -a the base path for the test endpoints (not required)
+    -a the base path for the test endpoints (optional)
 
-    -u JSON diff url (not required)
+    -u JSON diff url (optional)
 
-    --aws-secrect AWS secret (not required)
+    --shortener path to shortener config js file (optional)
 
-    --aws-key AWS Key (not required)
+    --aws-secrect AWS secret (optional)
 
-    --aws-bucket AWS Bucket (not required)
+    --aws-key AWS Key (optional)
 
-    --verbose Prints out the headers and output from the server for each test. (not required)
+    --aws-bucket AWS Bucket (optional)
+
+    --verbose Prints out the headers and output from the server for each test. (optional)
 
 Running a specific set of tests.
   `gauntlet <parameters> "testname.subTest" "testname"`
@@ -43,3 +45,24 @@ The format for the test file has changed the converter can convert old format to
 ```
 
 This command will overwrite the old file. If you want to keep the old file I suggest making a backup.
+
+###Using the shortener
+To use the shortener you must specify a js file that looks something like:
+```
+module.exports = {
+  request : (url, callback) => {
+    callback({
+      'url'     : 'https://example.com',
+      'headers' : {
+        'content-type' : 'application/json'
+      },
+      'body' : JSON.stringify({
+        'url' : url
+      })
+    })
+  },
+  response : (data, callback) => {
+    callback(JSON.parse(data).shortLink)
+  }
+}
+```
