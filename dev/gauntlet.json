@@ -1,0 +1,16 @@
+{
+	"test1": {
+		"name"     : "test",
+		"endpoint" : "",
+		"tests"    : [
+			{
+				"name"  : "t1",
+				"files" : {
+					"inputs" : "input.json",
+					"output" : "output.json"
+				},
+				"ms": 2500
+			}
+		]
+	}
+}

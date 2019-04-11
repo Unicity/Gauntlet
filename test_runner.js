@@ -31,6 +31,7 @@ const self = {}
 
 function main (options) {
 	self.options = options;
+	console.log('options', options)
 
 	var host             = options.host;
 	var port             = options.port;
@@ -528,13 +529,16 @@ function sendToS3 (obj, name, type, client) {
 }
 
 function shortenUrl (url) {
-	if (typeof self.options === 'object'
-	&&  typeof self.options.shortenerDir === 'string'
-	&&  fs.existsSync(self.options.shortenerDir)) {
-		const promise   = q.defer();
-		const shortener = require(self.options.shortenerDir)
+	var promise = q.defer();
 
-		shortener(url, promise.resolve)
+	if (typeof self.options === 'object'
+	&&  typeof self.options.shortener === 'string'
+	&&  fs.existsSync(self.options.shortener)) {
+		const shortener = require(path.join(process.cwd(), self.options.shortener))
+
+		shortener(url, (shortUrl) => {
+			promise.resolve(shortUrl)
+		})
 
 		return promise.promise
 	}

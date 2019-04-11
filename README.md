@@ -49,20 +49,23 @@ This command will overwrite the old file. If you want to keep the old file I sug
 ###Using the shortener
 To use the shortener you must specify a js file that looks something like:
 ```
-module.exports = {
-  request : (url, callback) => {
-    callback({
-      'url'     : 'https://example.com',
-      'headers' : {
-        'content-type' : 'application/json'
-      },
-      'body' : JSON.stringify({
-        'url' : url
-      })
+const request = require('request')
+
+module.exports = (url, callback) => {
+  request.post({
+    url     : 'https://example.com',
+    headers : {
+      'content-type' : 'application/json'
+    },
+    body : JSON.stringify({
+      url : url
     })
-  },
-  response : (data, callback) => {
-    callback(JSON.parse(data).shortLink)
-  }
+  }, (error, response, body) => {
+    if (error) {
+      throw error
+    }
+
+    callback(JSON.parse(body).link)
+  })
 }
 ```
