@@ -25,7 +25,6 @@ server.listen(port, (error) => {
 	gauntlet.stderr.on('data', data => console.log(data.toString()))
 
 	gauntlet.on('close', (code) => {
-		console.log(`child process exited with code ${code}`)
 		process.exit(code)
 	})
 })
